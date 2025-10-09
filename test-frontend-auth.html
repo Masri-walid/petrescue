@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Auth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Frontend Authentication Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Registration Test</h2>
+        <div>
+            <label>User Type:</label>
+            <select id="regUserType">
+                <option value="citizen">Citizen</option>
+                <option value="veterinarian">Veterinarian</option>
+                <option value="shelter">Shelter</option>
+            </select>
+        </div>
+        <div>
+            <input type="text" id="regFirstName" placeholder="First Name" value="Test">
+            <input type="text" id="regLastName" placeholder="Last Name" value="User">
+        </div>
+        <div>
+            <input type="email" id="regEmail" placeholder="Email" value="testuser@example.com">
+            <input type="password" id="regPassword" placeholder="Password" value="password123">
+        </div>
+        <div id="locationFields" style="display: none;">
+            <input type="text" id="regAddress" placeholder="Address" value="123 Test St">
+            <input type="text" id="regCity" placeholder="City" value="Montreal">
+            <input type="text" id="regState" placeholder="State" value="QC">
+            <input type="text" id="regZipCode" placeholder="ZIP Code" value="H1A 1A1">
+        </div>
+        <div>
+            <button onclick="testRegistration()">Test Registration</button>
+        </div>
+        <div id="regResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Login Test</h2>
+        <div>
+            <input type="email" id="loginEmail" placeholder="Email" value="testuser@example.com">
+            <input type="password" id="loginPassword" placeholder="Password" value="password123">
+        </div>
+        <div>
+            <button onclick="testLogin()">Test Login</button>
+        </div>
+        <div id="loginResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Profile Test</h2>
+        <div>
+            <button onclick="testProfile()">Test Get Profile</button>
+            <button onclick="testLogout()">Test Logout</button>
+        </div>
+        <div id="profileResult" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        let authToken = null;
+
+        // Show/hide location fields based on user type
+        document.getElementById('regUserType').addEventListener('change', function() {
+            const userType = this.value;
+            const locationFields = document.getElementById('locationFields');
+            locationFields.style.display = userType !== 'citizen' ? 'block' : 'none';
+        });
+
+        async function makeRequest(method, endpoint, data = null, useAuth = false) {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (useAuth && authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    method,
+                    headers,
+                    body: data ? JSON.stringify(data) : null
+                });
+
+                const result = await response.json();
+                return { status: response.status, data: result };
+            } catch (error) {
+                return { status: 0, error: error.message };
+            }
+        }
+
+        async function testRegistration() {
+            const userType = document.getElementById('regUserType').value;
+            const data = {
+                firstName: document.getElementById('regFirstName').value,
+                lastName: document.getElementById('regLastName').value,
+                email: document.getElementById('regEmail').value,
+                password: document.getElementById('regPassword').value,
+                role: userType
+            };
+
+            // Add location data for non-citizen types
+            if (userType !== 'citizen') {
+                data.address = document.getElementById('regAddress').value;
+                data.city = document.getElementById('regCity').value;
+                data.state = document.getElementById('regState').value;
+                data.zipCode = document.getElementById('regZipCode').value;
+            }
+
+            const result = await makeRequest('POST', '/auth/register', data);
+            const resultDiv = document.getElementById('regResult');
+            
+            if (result.status === 200 || result.status === 201) {
+                resultDiv.innerHTML = `<span class="success">✅ Registration successful!</span><br>
+                    Token: ${result.data.token ? 'Present' : 'Missing'}<br>
+                    User: ${JSON.stringify(result.data.user, null, 2)}`;
+                if (result.data.token) {
+                    authToken = result.data.token;
+                }
+            } else {
+                resultDiv.innerHTML = `<span class="error">❌ Registration failed (${result.status})</span><br>
+                    ${JSON.stringify(result.data || result.error, null, 2)}`;
+            }
+        }
+
+        async function testLogin() {
+            const data = {
+                email: document.getElementById('loginEmail').value,
+                password: document.getElementById('loginPassword').value
+            };
+
+            const result = await makeRequest('POST', '/auth/login', data);
+            const resultDiv = document.getElementById('loginResult');
+            
+            if (result.status === 200) {
+                resultDiv.innerHTML = `<span class="success">✅ Login successful!</span><br>
+                    Token: ${result.data.token ? 'Present' : 'Missing'}<br>
+                    User Type: ${result.data.user?.userType || 'Not specified'}<br>
+                    User: ${JSON.stringify(result.data.user, null, 2)}`;
+                if (result.data.token) {
+                    authToken = result.data.token;
+                }
+            } else {
+                resultDiv.innerHTML = `<span class="error">❌ Login failed (${result.status})</span><br>
+                    ${JSON.stringify(result.data || result.error, null, 2)}`;
+            }
+        }
+
+        async function testProfile() {
+            if (!authToken) {
+                document.getElementById('profileResult').innerHTML = 
+                    '<span class="error">❌ No auth token. Please login first.</span>';
+                return;
+            }
+
+            const result = await makeRequest('GET', '/auth/profile', null, true);
+            const resultDiv = document.getElementById('profileResult');
+            
+            if (result.status === 200) {
+                resultDiv.innerHTML = `<span class="success">✅ Profile retrieved!</span><br>
+                    ${JSON.stringify(result.data, null, 2)}`;
+            } else {
+                resultDiv.innerHTML = `<span class="error">❌ Profile failed (${result.status})</span><br>
+                    ${JSON.stringify(result.data || result.error, null, 2)}`;
+            }
+        }
+
+        async function testLogout() {
+            authToken = null;
+            document.getElementById('profileResult').innerHTML = 
+                '<span class="info">🔓 Logged out (token cleared)</span>';
+        }
+
+        // Auto-generate unique email
+        document.getElementById('regEmail').value = `testuser${Date.now()}@example.com`;
+        document.getElementById('loginEmail').value = document.getElementById('regEmail').value;
+    </script>
+</body>
+</html>
