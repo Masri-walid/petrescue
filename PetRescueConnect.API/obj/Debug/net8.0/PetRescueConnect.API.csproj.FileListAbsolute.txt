@@ -135,6 +135,7 @@ C:\Users\walid\Desktop\projects\petrescue-connect2\PetRescueConnect.API\obj\Debu
 C:\Users\walid\Desktop\projects\petrescue-connect2\PetRescueConnect.API\obj\Debug\net8.0\PetRescueConnect.API.MvcApplicationPartsAssemblyInfo.cs
 C:\Users\walid\Desktop\projects\petrescue-connect2\PetRescueConnect.API\obj\Debug\net8.0\PetRescueConnect.API.MvcApplicationPartsAssemblyInfo.cache
 C:\Users\walid\Desktop\projects\petrescue-connect2\PetRescueConnect.API\obj\Debug\net8.0\EFCoreNpgsqlNetTopologySuite.cs
+C:\Users\walid\Desktop\projects\petrescue-connect2\PetRescueConnect.API\obj\Debug\net8.0\PetRescueConnect.API.sourcelink.json
 C:\Users\walid\Desktop\projects\petrescue-connect2\PetRescueConnect.API\obj\Debug\net8.0\rjimswa.dswa.cache.json
 C:\Users\walid\Desktop\projects\petrescue-connect2\PetRescueConnect.API\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
 C:\Users\walid\Desktop\projects\petrescue-connect2\PetRescueConnect.API\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json

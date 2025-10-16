@@ -20,7 +20,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Shelter,Veterinarian")]
+        [Authorize(Roles = "shelter,veterinarian")]
         public async Task<ActionResult<IEnumerable<AdoptionApplicationDto>>> GetApplications(
             [FromQuery] string? status = null,
             [FromQuery] Guid? animalId = null,
@@ -143,13 +143,13 @@ namespace PetRescueConnect.API.Controllers
 
             bool hasPermission = false;
 
-            if (userRole == "Citizen" && !string.IsNullOrEmpty(userIdClaim) &&
+            if (userRole == "citizen" && !string.IsNullOrEmpty(userIdClaim) &&
                 Guid.TryParse(userIdClaim, out Guid userId) && application.ApplicantId == userId)
             {
                 hasPermission = true;
             }
-            else if ((userRole == "Shelter" || userRole == "Veterinarian") && 
-                     !string.IsNullOrEmpty(organizationIdClaim) && 
+            else if ((userRole == "shelter" || userRole == "veterinarian") &&
+                     !string.IsNullOrEmpty(organizationIdClaim) &&
                      Guid.TryParse(organizationIdClaim, out Guid orgId) &&
                      application.Animal.OrganizationId == orgId)
             {
@@ -278,7 +278,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpPut("{id}/status")]
-        [Authorize(Roles = "Shelter,Veterinarian")]
+        [Authorize(Roles = "shelter,veterinarian")]
         public async Task<IActionResult> UpdateApplicationStatus(Guid id, [FromBody] UpdateApplicationStatusRequest request)
         {
             var application = await _context.AdoptionApplications

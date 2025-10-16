@@ -11,8 +11,8 @@ namespace PetRescueConnect.API.DTOs
         public string? Color { get; set; }
         public string? Description { get; set; }
         public string Location { get; set; } = string.Empty;
-        public decimal Latitude { get; set; }
-        public decimal Longitude { get; set; }
+        public decimal? Latitude { get; set; }
+        public decimal? Longitude { get; set; }
         public string UrgencyLevel { get; set; } = string.Empty;
         public string AnimalCondition { get; set; } = string.Empty;
         public bool InjuredOrSick { get; set; }
@@ -30,8 +30,11 @@ namespace PetRescueConnect.API.DTOs
     public class RescuePhotoDto
     {
         public Guid Id { get; set; }
-        public string FilePath { get; set; } = string.Empty;
-        public string? FileName { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public string ContentType { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string PhotoUrl { get; set; } = string.Empty;
     }
 
     public class CreateRescueReportRequest
@@ -56,11 +59,9 @@ namespace PetRescueConnect.API.DTOs
         [StringLength(500)]
         public string Location { get; set; } = string.Empty;
 
-        [Required]
-        public decimal Latitude { get; set; }
+        public decimal? Latitude { get; set; }
 
-        [Required]
-        public decimal Longitude { get; set; }
+        public decimal? Longitude { get; set; }
 
         [Required]
         [StringLength(20)]

@@ -24,6 +24,65 @@ namespace PetRescueConnect.API.Controllers
             _imageService = imageService;
         }
 
+        [HttpGet("debug/raw-sql")]
+        [Authorize(Roles = "veterinarian,shelter")]
+        public async Task<ActionResult<object>> GetRescueReportsRawSql()
+        {
+            try
+            {
+                // Test with raw SQL to bypass Entity Framework
+                var connection = _context.Database.GetDbConnection();
+                await connection.OpenAsync();
+
+                using var command = connection.CreateCommand();
+                command.CommandText = "SELECT COUNT(*) FROM rescue_reports";
+                var count = await command.ExecuteScalarAsync();
+
+                return Ok(new {
+                    message = "Raw SQL query successful",
+                    rescueCount = count,
+                    timestamp = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new {
+                    error = ex.Message,
+                    innerError = ex.InnerException?.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+
+        [HttpGet("debug/simple")]
+        [Authorize(Roles = "veterinarian,shelter")]
+        public async Task<ActionResult<object>> GetRescueReportsSimple()
+        {
+            try
+            {
+                // Test selecting just ID and AnimalType
+                var reports = await _context.RescueReports
+                    .Select(r => new { r.Id, r.AnimalType })
+                    .Take(5)
+                    .ToListAsync();
+
+                return Ok(new {
+                    message = "Simple select successful",
+                    count = reports.Count,
+                    reports = reports,
+                    timestamp = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new {
+                    error = ex.Message,
+                    innerError = ex.InnerException?.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+
         [HttpGet("user/{userId}")]
         [Authorize]
         public async Task<ActionResult<IEnumerable<RescueReportDto>>> GetUserRescueReports(Guid userId)
@@ -71,16 +130,42 @@ namespace PetRescueConnect.API.Controllers
                 Photos = r.Photos.Select(p => new RescuePhotoDto
                 {
                     Id = p.Id,
-                    FilePath = p.FilePath,
-                    FileName = p.FileName
+                    FileName = p.FileName,
+                    ContentType = p.ContentType,
+                    FileSize = p.FileSize,
+                    CreatedAt = p.CreatedAt,
+                    PhotoUrl = $"/api/RescueReports/photos/{p.Id}"
                 }).ToList()
             });
 
             return Ok(result);
         }
 
+
+
+        [HttpGet("test-auth")]
+        [Authorize]
+        public IActionResult TestAuthAccess()
+        {
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            var allClaims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
+            var isInVetRole = User.IsInRole("veterinarian");
+            var isInShelterRole = User.IsInRole("shelter");
+
+            return Ok(new {
+                UserRole = userRole,
+                AllClaims = allClaims,
+                IsInVetRole = isInVetRole,
+                IsInShelterRole = isInShelterRole,
+                HasVetRole = userRole == "veterinarian",
+                HasShelterRole = userRole == "shelter"
+            });
+        }
+
+
+
         [HttpGet]
-        [Authorize(Roles = "Shelter,Veterinarian")]
+        [Authorize(Roles = "veterinarian,shelter")]
         public async Task<ActionResult<IEnumerable<RescueReportDto>>> GetRescueReports(
             [FromQuery] string? status = null,
             [FromQuery] string? urgency = null,
@@ -154,8 +239,11 @@ namespace PetRescueConnect.API.Controllers
                 Photos = r.Photos.Select(p => new RescuePhotoDto
                 {
                     Id = p.Id,
-                    FilePath = p.FilePath,
-                    FileName = p.FileName
+                    FileName = p.FileName,
+                    ContentType = p.ContentType,
+                    FileSize = p.FileSize,
+                    CreatedAt = p.CreatedAt,
+                    PhotoUrl = $"/api/RescueReports/photos/{p.Id}"
                 }).ToList()
             });
 
@@ -170,7 +258,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpGet("{id}")]
-        [Authorize(Roles = "Shelter,Veterinarian")]
+        [Authorize(Roles = "shelter,veterinarian")]
         public async Task<ActionResult<RescueReportDto>> GetRescueReport(Guid id)
         {
             var report = await _context.RescueReports
@@ -209,8 +297,11 @@ namespace PetRescueConnect.API.Controllers
                 Photos = report.Photos.Select(p => new RescuePhotoDto
                 {
                     Id = p.Id,
-                    FilePath = p.FilePath,
-                    FileName = p.FileName
+                    FileName = p.FileName,
+                    ContentType = p.ContentType,
+                    FileSize = p.FileSize,
+                    CreatedAt = p.CreatedAt,
+                    PhotoUrl = $"/api/RescueReports/photos/{p.Id}"
                 }).ToList()
             };
 
@@ -293,7 +384,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpGet("unhandled/count")]
-        [Authorize(Roles = "Shelter,Veterinarian")]
+        [Authorize(Roles = "shelter,veterinarian")]
         public async Task<ActionResult<object>> GetUnhandledReportsCount()
         {
             var count = await _context.RescueReports
@@ -395,56 +486,111 @@ namespace PetRescueConnect.API.Controllers
 
         private async Task ProcessPhotoUploads(Guid rescueReportId, List<IFormFile> photos)
         {
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
+            // Expanded list of allowed image formats
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+            var allowedContentTypes = new[] {
+                "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"
+            };
             const long maxFileSize = 5 * 1024 * 1024; // 5MB
-
-            // Create upload directory if it doesn't exist
-            var uploadPath = Path.Combine("wwwroot", "uploads", "rescue-photos");
-            Directory.CreateDirectory(uploadPath);
 
             foreach (var photo in photos.Take(5)) // Limit to 5 photos
             {
-                // Validate file
+                // Validate file extension
                 var extension = Path.GetExtension(photo.FileName).ToLowerInvariant();
                 if (!allowedExtensions.Contains(extension))
                 {
+                    Console.WriteLine($"Skipping file {photo.FileName}: Invalid extension {extension}");
                     continue; // Skip invalid files
                 }
 
+                // Validate content type
+                if (!allowedContentTypes.Contains(photo.ContentType?.ToLowerInvariant()))
+                {
+                    Console.WriteLine($"Skipping file {photo.FileName}: Invalid content type {photo.ContentType}");
+                    continue; // Skip invalid content types
+                }
+
+                // Validate file size
                 if (photo.Length > maxFileSize)
                 {
+                    Console.WriteLine($"Skipping file {photo.FileName}: File too large ({photo.Length} bytes)");
                     continue; // Skip files that are too large
                 }
 
-                // Generate unique filename
-                var fileName = $"{Guid.NewGuid()}{extension}";
-                var filePath = Path.Combine(uploadPath, fileName);
-
-                // Save file
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                // Read photo data into byte array
+                byte[] photoData;
+                using (var memoryStream = new MemoryStream())
                 {
-                    await photo.CopyToAsync(stream);
+                    await photo.CopyToAsync(memoryStream);
+                    photoData = memoryStream.ToArray();
                 }
 
-                // Create database record
+                // Create database record with binary data
                 var rescuePhoto = new RescuePhoto
                 {
                     RescueReportId = rescueReportId,
-                    FilePath = Path.Combine("uploads", "rescue-photos", fileName),
-                    FileName = photo.FileName,
-                    ContentType = photo.ContentType,
+                    FileName = photo.FileName ?? $"photo{extension}",
+                    ContentType = photo.ContentType ?? GetContentTypeFromExtension(extension),
                     FileSize = photo.Length,
+                    PhotoData = photoData,
                     CreatedAt = DateTime.UtcNow
                 };
 
                 _context.RescuePhotos.Add(rescuePhoto);
+                Console.WriteLine($"Added photo {photo.FileName} to database ({photo.Length} bytes)");
             }
 
             await _context.SaveChangesAsync();
         }
 
+        private static string GetContentTypeFromExtension(string extension)
+        {
+            return extension.ToLowerInvariant() switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                _ => "application/octet-stream"
+            };
+        }
+
+        [HttpGet("photos/{photoId}")]
+        public async Task<IActionResult> GetRescuePhoto(Guid photoId)
+        {
+            var photo = await _context.RescuePhotos.FindAsync(photoId);
+
+            if (photo == null)
+            {
+                return NotFound("Photo not found");
+            }
+
+            // Return the photo data with proper content type
+            return File(photo.PhotoData, photo.ContentType, photo.FileName);
+        }
+
+        [HttpGet("{id}/photos")]
+        public async Task<ActionResult<List<RescuePhotoDto>>> GetRescueReportPhotos(Guid id)
+        {
+            var photos = await _context.RescuePhotos
+                .Where(p => p.RescueReportId == id)
+                .Select(p => new RescuePhotoDto
+                {
+                    Id = p.Id,
+                    FileName = p.FileName,
+                    ContentType = p.ContentType,
+                    FileSize = p.FileSize,
+                    CreatedAt = p.CreatedAt,
+                    // Don't include PhotoData in list view for performance
+                    PhotoUrl = $"/api/RescueReports/photos/{p.Id}"
+                })
+                .ToListAsync();
+
+            return Ok(photos);
+        }
+
         [HttpPut("{id}/assign")]
-        [Authorize(Roles = "Shelter,Veterinarian")]
+        [Authorize(Roles = "shelter,veterinarian")]
         public async Task<IActionResult> AssignRescueReport(Guid id, [FromBody] AssignRescueRequest? request = null)
         {
             var report = await _context.RescueReports.FindAsync(id);
@@ -473,9 +619,9 @@ namespace PetRescueConnect.API.Controllers
                 return Unauthorized();
             }
 
-            // For now, create a mock organization ID based on user ID
+            // For now, use user ID as organization ID (simulating each user is their own organization)
             // In production, this should be properly linked to user's organization
-            var organizationId = Guid.NewGuid(); // Mock organization ID
+            var organizationId = userId; // Use user ID as organization ID for simplicity
 
             report.AssignedOrganizationId = organizationId;
             report.Status = "Assigned";
@@ -490,7 +636,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpPut("{id}/status")]
-        [Authorize(Roles = "Shelter,Veterinarian")]
+        [Authorize(Roles = "shelter,veterinarian")]
         public async Task<IActionResult> UpdateRescueStatus(Guid id, [FromBody] UpdateRescueStatusRequest request)
         {
             var report = await _context.RescueReports.FindAsync(id);

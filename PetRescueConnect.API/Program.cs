@@ -4,6 +4,8 @@ using PetRescueConnect.API.Middleware;
 using PetRescueConnect.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.Globalization;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,11 +23,17 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
     options.MultipartHeadersLengthLimit = int.MaxValue;
 });
 
+// Configure culture to use invariant culture for decimal parsing
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+
 // Database - PostgreSQL with NetTopologySuite for spatial data
 builder.Services.AddDbContext<PetRescueDbContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
-        o => o.UseNetTopologySuite());
+        o => o.UseNetTopologySuite())
+        .EnableSensitiveDataLogging()
+        .LogTo(Console.WriteLine, LogLevel.Information);
 });
 
 // Authentication
@@ -40,7 +48,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "default-secret-key-for-development"))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "default-secret-key-for-development")),
+            RoleClaimType = ClaimTypes.Role
         };
     });
 
@@ -121,35 +130,7 @@ try
         Console.WriteLine($"⚠️ Could not modify coordinates column: {ex.Message}");
     }
 
-    // Add latitude and longitude columns to users table if they don't exist
-    try
-    {
-        var addLatitudeCmd = new Npgsql.NpgsqlCommand(@"
-            DO $$
-            BEGIN
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'latitude') THEN
-                    ALTER TABLE users ADD COLUMN latitude DECIMAL(10,8) NULL;
-                    RAISE NOTICE 'Added latitude column to users table';
-                END IF;
-            END $$;", conn);
-        await addLatitudeCmd.ExecuteNonQueryAsync();
 
-        var addLongitudeCmd = new Npgsql.NpgsqlCommand(@"
-            DO $$
-            BEGIN
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'longitude') THEN
-                    ALTER TABLE users ADD COLUMN longitude DECIMAL(11,8) NULL;
-                    RAISE NOTICE 'Added longitude column to users table';
-                END IF;
-            END $$;", conn);
-        await addLongitudeCmd.ExecuteNonQueryAsync();
-
-        Console.WriteLine("✅ Ensured latitude and longitude columns exist in users table");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"⚠️ Could not add latitude/longitude columns: {ex.Message}");
-    }
 
     await conn.CloseAsync();
     Console.WriteLine("✅ Database connection verified - tables should exist!");

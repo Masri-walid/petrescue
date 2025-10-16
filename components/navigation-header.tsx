@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Heart } from 'lucide-react'
 
 export function NavigationHeader() {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
 
   return (
     <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
@@ -35,7 +35,14 @@ export function NavigationHeader() {
             <Link href="/shelters" className="text-muted-foreground hover:text-foreground transition-colors">
               Shelters
             </Link>
-            
+
+            {/* Role-based navigation for vets and shelters */}
+            {user && (user.role === 'veterinarian' || user.role === 'shelter') && (
+              <Link href="/notifications" className="text-muted-foreground hover:text-foreground transition-colors">
+                Reports Dashboard
+              </Link>
+            )}
+
             {/* Authentication-based navigation */}
             {isLoading ? (
               <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />

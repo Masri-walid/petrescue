@@ -31,8 +31,8 @@ namespace PetRescueConnect.API.DTOs
         public string? City { get; set; }
         public string? State { get; set; }
         public string? ZipCode { get; set; }
-        public decimal? Latitude { get; set; }
-        public decimal? Longitude { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
     }
 
     public class LoginRequest
@@ -65,8 +65,8 @@ namespace PetRescueConnect.API.DTOs
         public string? City { get; set; }
         public string? State { get; set; }
         public string? ZipCode { get; set; }
-        public decimal? Latitude { get; set; }
-        public decimal? Longitude { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
         public string? ProfileImageUrl { get; set; }
         public bool IsActive { get; set; } = true;
         public bool IsVerified { get; set; } = false;

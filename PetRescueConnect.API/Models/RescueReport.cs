@@ -12,17 +12,20 @@ namespace PetRescueConnect.API.Models
         [StringLength(50)]
         public string AnimalType { get; set; } = string.Empty;
 
-        [NotMapped]
         [StringLength(100)]
         public string? Breed { get; set; }
 
-        [NotMapped]
         [StringLength(20)]
         public string? Size { get; set; }
 
-        [NotMapped]
         [StringLength(20)]
         public string? Color { get; set; }
+
+        [StringLength(20)]
+        public string? Gender { get; set; }
+
+        [StringLength(50)]
+        public string? AgeEstimate { get; set; }
 
         [StringLength(1000)]
         public string? Description { get; set; }
@@ -35,12 +38,10 @@ namespace PetRescueConnect.API.Models
         [NotMapped]
         public Point? Coordinates { get; set; }
 
-        // Temporary simple properties until PostGIS is installed
-        [NotMapped]
-        public decimal Latitude { get; set; }
+        // Simple coordinate properties (database has latitude/longitude columns)
+        public decimal? Latitude { get; set; }
 
-        [NotMapped]
-        public decimal Longitude { get; set; }
+        public decimal? Longitude { get; set; }
 
         [Required]
         [StringLength(20)]
@@ -49,10 +50,8 @@ namespace PetRescueConnect.API.Models
         [StringLength(50)]
         public string AnimalCondition { get; set; } = "Unknown";
 
-        [NotMapped]
         public bool InjuredOrSick { get; set; } = false;
 
-        [NotMapped]
         [StringLength(500)]
         public string? InjuryDescription { get; set; }
 

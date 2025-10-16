@@ -11,8 +11,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Heart, PlusCircle, Upload, ArrowLeft } from 'lucide-react'
+import { Heart, PlusCircle, Upload, ArrowLeft, Camera, X } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
+import { useRef } from 'react'
 
 export default function AddAnimalPage() {
   const { user, isAuthenticated } = useAuth()
@@ -44,9 +46,16 @@ export default function AddAnimalPage() {
     availableFor: 'adoption' // adoption, sale, both
   })
 
+  const [photos, setPhotos] = useState<File[]>([])
+  const [showCamera, setShowCamera] = useState(false)
+  const [stream, setStream] = useState<MediaStream | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // Check if user is authorized
   if (!isAuthenticated || !user) {
@@ -81,6 +90,70 @@ export default function AddAnimalPage() {
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+
+    if (photos.length + files.length > 5) {
+      alert("Maximum 5 photos allowed")
+      return
+    }
+
+    for (const file of files.slice(0, 5 - photos.length)) {
+      setPhotos((prev) => [...prev, file])
+    }
+  }
+
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true })
+      setStream(mediaStream)
+      setShowCamera(true)
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream
+      }
+    } catch (error) {
+      console.error("Error accessing camera:", error)
+      alert("Unable to access camera. Please use file upload instead.")
+    }
+  }
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop())
+      setStream(null)
+    }
+    setShowCamera(false)
+  }
+
+  const capturePhoto = async () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      const context = canvas.getContext("2d")
+
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+
+      if (context) {
+        context.drawImage(video, 0, 0)
+        canvas.toBlob(
+          async (blob) => {
+            if (blob && photos.length < 5) {
+              const file = new File([blob], `animal-photo-${Date.now()}.jpg`, { type: "image/jpeg" })
+              setPhotos((prev) => [...prev, file])
+            }
+          },
+          "image/jpeg",
+          0.8,
+        )
+      }
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,18 +193,87 @@ export default function AddAnimalPage() {
 
       console.log('Submitting animal data:', animalData)
 
-      // Submit to API
-      const response = await apiClient.post('/api/animals', animalData)
+      // Create FormData for multipart upload
+      const formDataToSend = new FormData()
 
-      if (response.error) {
-        setError(response.error)
+      // Add all animal data as JSON
+      Object.entries(animalData).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          if (Array.isArray(value)) {
+            formDataToSend.append(key, JSON.stringify(value))
+          } else {
+            formDataToSend.append(key, value.toString())
+          }
+        }
+      })
+
+      // Add photos
+      photos.forEach((photo, index) => {
+        formDataToSend.append(`photos`, photo)
+      })
+
+      // Choose endpoint based on whether photos are present
+      const endpoint = photos.length > 0 ? '/api/animals/with-photos' : '/api/animals'
+      const requestOptions = photos.length > 0
+        ? {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formDataToSend
+          }
+        : {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(animalData)
+          }
+
+      // Submit to API
+      const response = await fetch(endpoint, requestOptions)
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.message || 'Failed to add animal')
       } else {
         setSuccess('Animal added successfully!')
+        // Clear form
+        setFormData({
+          name: '',
+          species: '',
+          breed: '',
+          ageCategory: '',
+          estimatedAge: '',
+          gender: '',
+          size: '',
+          color: '',
+          weight: '',
+          description: '',
+          adoptionFee: '',
+          healthStatus: 'Unknown',
+          vaccinated: false,
+          spayedNeutered: false,
+          microchipped: false,
+          goodWithKids: false,
+          goodWithPets: false,
+          goodWithCats: false,
+          houseTrained: false,
+          specialNeeds: false,
+          energyLevel: '',
+          personality: '',
+          availableFor: 'adoption'
+        })
+        setPhotos([])
         // Redirect to animals list after a short delay
         setTimeout(() => {
           router.push('/profile/animals')
         }, 2000)
       }
+
+
     } catch (error) {
       console.error('Error adding animal:', error)
       setError('Failed to add animal. Please try again.')
@@ -146,10 +288,10 @@ export default function AddAnimalPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
-            <Link href="/profile">
+            <Link href="/">
               <Button variant="outline" size="sm">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Profile
+                Back to Home
               </Button>
             </Link>
             <div className="flex items-center gap-2">
@@ -368,6 +510,91 @@ export default function AddAnimalPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Photos */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Photos</CardTitle>
+                  <CardDescription>Add up to 5 photos to help potential adopters see your animal</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                    />
+                    <Camera className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground mb-4">Take photos or upload up to 5 photos of the animal</p>
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                      <Button type="button" variant="outline" onClick={startCamera}>
+                        <Camera className="w-4 h-4 mr-2" />
+                        Take Photo
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload Photos
+                      </Button>
+                    </div>
+                  </div>
+
+                  {showCamera && (
+                    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+                      <div className="bg-background rounded-lg p-4 max-w-md w-full mx-4">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-lg font-semibold">Take Photo</h3>
+                          <Button variant="ghost" size="sm" onClick={stopCamera}>
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <div className="relative">
+                          <video ref={videoRef} autoPlay playsInline className="w-full rounded-lg" />
+                          <canvas ref={canvasRef} className="hidden" />
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                          <Button onClick={capturePhoto} className="flex-1">
+                            <Camera className="w-4 h-4 mr-2" />
+                            Capture
+                          </Button>
+                          <Button variant="outline" onClick={stopCamera}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {photos.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {photos.map((photo, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square bg-muted rounded-lg overflow-hidden">
+                            <Image
+                              src={URL.createObjectURL(photo) || "/placeholder.svg"}
+                              alt={`Photo ${index + 1}`}
+                              width={200}
+                              height={200}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => removePhoto(index)}
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

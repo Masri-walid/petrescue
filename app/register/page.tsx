@@ -14,7 +14,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Heart, Mail, Lock, User, Building, Stethoscope, Phone, MapPin } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import LocationPicker from "@/components/location-picker"
 
 export default function RegisterPage() {
   const searchParams = useSearchParams()
@@ -34,7 +33,6 @@ export default function RegisterPage() {
     state: "",
     zipCode: "",
   })
-  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
 
@@ -42,25 +40,7 @@ export default function RegisterPage() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleLocationSelect = (location: { address: string; coordinates: { lat: number; lng: number } }) => {
-    setCoordinates(location.coordinates)
-    // Parse the address into components (this is a simple implementation)
-    const addressParts = location.address.split(',').map(part => part.trim())
-    if (addressParts.length >= 1) {
-      setFormData(prev => ({
-        ...prev,
-        address: addressParts[0] || location.address,
-        city: addressParts[1] || '',
-        state: addressParts[2] || '',
-        zipCode: addressParts[3] || ''
-      }))
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        address: location.address
-      }))
-    }
-  }
+
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -104,8 +84,6 @@ export default function RegisterPage() {
           city: formData.city.trim() || undefined,
           state: formData.state.trim() || undefined,
           zipCode: formData.zipCode.trim() || undefined,
-          latitude: coordinates?.lat,
-          longitude: coordinates?.lng,
         }),
       }
 
@@ -269,28 +247,56 @@ export default function RegisterPage() {
                     <span className="text-sm text-muted-foreground">(Required for {userType}s)</span>
                   </div>
 
-                  <LocationPicker
-                    onLocationSelect={handleLocationSelect}
-                    initialAddress={formData.address}
-                  />
-
-                  {/* Display parsed address components for verification */}
-                  {(formData.address || formData.city || formData.state || formData.zipCode) && (
-                    <div className="p-3 bg-muted/30 rounded-lg">
-                      <Label className="text-sm font-medium mb-2 block">Parsed Address:</Label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                        {formData.address && <div><strong>Address:</strong> {formData.address}</div>}
-                        {formData.city && <div><strong>City:</strong> {formData.city}</div>}
-                        {formData.state && <div><strong>State:</strong> {formData.state}</div>}
-                        {formData.zipCode && <div><strong>ZIP:</strong> {formData.zipCode}</div>}
-                        {coordinates && (
-                          <div className="md:col-span-2">
-                            <strong>Coordinates:</strong> {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
-                          </div>
-                        )}
+                  {/* Manual address input fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2 space-y-2">
+                      <Label htmlFor="address">Address</Label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="address"
+                          type="text"
+                          placeholder="Street address"
+                          value={formData.address}
+                          onChange={(e) => handleInputChange('address', e.target.value)}
+                          className="pl-10"
+                        />
                       </div>
                     </div>
-                  )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        type="text"
+                        placeholder="City"
+                        value={formData.city}
+                        onChange={(e) => handleInputChange('city', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="state">State/Province</Label>
+                      <Input
+                        id="state"
+                        type="text"
+                        placeholder="State or Province"
+                        value={formData.state}
+                        onChange={(e) => handleInputChange('state', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="zipCode">ZIP/Postal Code</Label>
+                      <Input
+                        id="zipCode"
+                        type="text"
+                        placeholder="ZIP or Postal Code"
+                        value={formData.zipCode}
+                        onChange={(e) => handleInputChange('zipCode', e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 

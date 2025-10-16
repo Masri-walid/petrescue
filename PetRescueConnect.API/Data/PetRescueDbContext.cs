@@ -45,9 +45,11 @@ namespace PetRescueConnect.API.Data
                 entity.Property(e => e.City).HasColumnName("city");
                 entity.Property(e => e.State).HasColumnName("state");
                 entity.Property(e => e.ZipCode).HasColumnName("zip_code");
-                entity.Property(e => e.Latitude).HasColumnName("latitude");
-                entity.Property(e => e.Longitude).HasColumnName("longitude");
                 entity.Property(e => e.ProfileImageUrl).HasColumnName("profile_image_url");
+
+                // Ignore properties that don't exist in the database
+                entity.Ignore(e => e.Latitude);
+                entity.Ignore(e => e.Longitude);
                 entity.Property(e => e.IsVerified).HasColumnName("is_verified");
                 entity.Property(e => e.IsActive).HasColumnName("is_active");
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at");
@@ -59,8 +61,7 @@ namespace PetRescueConnect.API.Data
             {
                 entity.Property(e => e.Id).HasColumnName("id");
                 entity.Property(e => e.Name).HasColumnName("name");
-                entity.Property(e => e.OrganizationType).HasColumnName("organization_type");
-                entity.Property(e => e.Description).HasColumnName("description");
+                entity.Property(e => e.OrganizationType).HasColumnName("type");
                 entity.Property(e => e.Address).HasColumnName("address");
                 entity.Property(e => e.City).HasColumnName("city");
                 entity.Property(e => e.State).HasColumnName("state");
@@ -68,19 +69,20 @@ namespace PetRescueConnect.API.Data
                 entity.Property(e => e.Phone).HasColumnName("phone");
                 entity.Property(e => e.Email).HasColumnName("email");
                 entity.Property(e => e.Website).HasColumnName("website");
-                entity.Property(e => e.LicenseNumber).HasColumnName("license_number");
-                entity.Property(e => e.Capacity).HasColumnName("capacity");
-                entity.Property(e => e.CurrentAnimalCount).HasColumnName("current_animal_count");
-                entity.Property(e => e.Rating).HasColumnName("rating");
-                entity.Property(e => e.ReviewCount).HasColumnName("review_count");
-                entity.Property(e => e.IsFeatured).HasColumnName("is_featured");
-                entity.Property(e => e.IsVerified).HasColumnName("is_verified");
                 entity.Property(e => e.IsActive).HasColumnName("is_active");
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at");
                 entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
 
-                // Map the POINT column for spatial coordinates
-                entity.Property(e => e.Coordinates).HasColumnName("coordinates");
+                // Ignore properties that don't exist in the database
+                entity.Ignore(e => e.Description);
+                entity.Ignore(e => e.LicenseNumber);
+                entity.Ignore(e => e.Capacity);
+                entity.Ignore(e => e.CurrentAnimalCount);
+                entity.Ignore(e => e.Rating);
+                entity.Ignore(e => e.ReviewCount);
+                entity.Ignore(e => e.IsFeatured);
+                entity.Ignore(e => e.IsVerified);
+                entity.Ignore(e => e.Coordinates);
                 // Latitude and Longitude are computed properties, not mapped to database
             });
 
@@ -91,38 +93,43 @@ namespace PetRescueConnect.API.Data
                 entity.Property(e => e.Name).HasColumnName("name");
                 entity.Property(e => e.Species).HasColumnName("species");
                 entity.Property(e => e.Breed).HasColumnName("breed");
-                entity.Property(e => e.AgeCategory).HasColumnName("age_category");
-                entity.Property(e => e.EstimatedAge).HasColumnName("estimated_age");
                 entity.Property(e => e.Gender).HasColumnName("gender");
                 entity.Property(e => e.Size).HasColumnName("size");
                 entity.Property(e => e.Color).HasColumnName("color");
                 entity.Property(e => e.Weight).HasColumnName("weight");
                 entity.Property(e => e.Description).HasColumnName("description");
-                entity.Property(e => e.MicrochipId).HasColumnName("microchip_id");
                 entity.Property(e => e.IsSpayedNeutered).HasColumnName("is_spayed_neutered");
-                entity.Property(e => e.VaccinationStatus).HasColumnName("vaccination_status");
-                entity.Property(e => e.Status).HasColumnName("status");
+                entity.Property(e => e.HouseTrained).HasColumnName("is_house_trained");
+                entity.Property(e => e.GoodWithKids).HasColumnName("good_with_kids");
+                entity.Property(e => e.GoodWithPets).HasColumnName("good_with_pets");
+                entity.Property(e => e.EnergyLevel).HasColumnName("energy_level");
+                entity.Property(e => e.Status)
+                    .HasColumnName("adoption_status")
+                    .HasColumnType("varchar(20)")
+                    .HasDefaultValue("available"); // Explicit Status mapping with type and default
+                entity.Property(e => e.IsSpayedNeutered).HasColumnName("is_spayed_neutered"); // Map IsSpayedNeutered
                 entity.Property(e => e.OrganizationId).HasColumnName("organization_id");
-                entity.Property(e => e.RescueReportId).HasColumnName("rescue_report_id");
-                entity.Property(e => e.AdoptionFee).HasColumnName("adoption_fee");
-                entity.Property(e => e.IsFeatured).HasColumnName("is_featured");
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at");
                 entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
 
-                // Handle array columns - for now we'll ignore them as they need special handling
+                // Ignore properties that don't have corresponding database columns
                 entity.Ignore(e => e.Personality);
                 entity.Ignore(e => e.Vaccinated);
                 entity.Ignore(e => e.SpayedNeutered);
                 entity.Ignore(e => e.Microchipped);
-                entity.Ignore(e => e.GoodWithKids);
-                entity.Ignore(e => e.GoodWithPets);
                 entity.Ignore(e => e.GoodWithCats);
-                entity.Ignore(e => e.EnergyLevel);
-                entity.Ignore(e => e.Featured);
+                entity.Ignore(e => e.AgeCategory);
+                entity.Ignore(e => e.EstimatedAge);
+                entity.Ignore(e => e.MicrochipId);
+                entity.Ignore(e => e.VaccinationStatus);
+                entity.Ignore(e => e.RescueReportId);
+                entity.Ignore(e => e.RescueReport); // Also ignore the navigation property
+                entity.Ignore(e => e.AdoptionFee);
+                entity.Ignore(e => e.IsFeatured);
                 entity.Ignore(e => e.RescueDate);
                 entity.Ignore(e => e.HealthStatus);
                 entity.Ignore(e => e.SpecialNeeds);
-                entity.Ignore(e => e.HouseTrained);
+                // Status is now properly mapped to adoption_status column
             });
 
             // Configure other model column mappings
@@ -143,16 +150,20 @@ namespace PetRescueConnect.API.Data
                 entity.Property(e => e.AssignedOrganizationId).HasColumnName("assigned_organization_id");
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at");
                 entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+                // Map the additional properties that exist in the database
+                entity.Property(e => e.Breed).HasColumnName("breed");
+                entity.Property(e => e.Size).HasColumnName("size");
+                entity.Property(e => e.Color).HasColumnName("color");
+                entity.Property(e => e.Gender).HasColumnName("gender");
+                entity.Property(e => e.AgeEstimate).HasColumnName("age_estimate");
+                entity.Property(e => e.Latitude).HasColumnName("latitude");
+                entity.Property(e => e.Longitude).HasColumnName("longitude");
+                entity.Property(e => e.InjuredOrSick).HasColumnName("injured_or_sick");
+                entity.Property(e => e.InjuryDescription).HasColumnName("injury_description");
+
                 // Temporarily ignore the POINT column until PostGIS is installed
                 entity.Ignore(e => e.Coordinates);
-                // Latitude and Longitude are computed properties, not mapped to database
-
-                // Properties that don't have corresponding database columns are ignored
-                entity.Ignore(e => e.Breed);
-                entity.Ignore(e => e.Size);
-                entity.Ignore(e => e.Color);
-                entity.Ignore(e => e.InjuredOrSick);
-                entity.Ignore(e => e.InjuryDescription);
             });
 
             modelBuilder.Entity<AdoptionApplication>(entity =>
@@ -160,6 +171,7 @@ namespace PetRescueConnect.API.Data
                 entity.Property(e => e.Id).HasColumnName("id");
                 entity.Property(e => e.AnimalId).HasColumnName("animal_id");
                 entity.Property(e => e.ApplicantId).HasColumnName("applicant_id");
+                entity.Property(e => e.Status).HasColumnName("status"); // Map Status property to status column
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at");
                 entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             });
@@ -176,8 +188,10 @@ namespace PetRescueConnect.API.Data
                 entity.ToTable("animal_photos");
                 entity.Property(e => e.Id).HasColumnName("id");
                 entity.Property(e => e.AnimalId).HasColumnName("animal_id");
-                entity.Property(e => e.PhotoUrl).HasColumnName("photo_url");
-                entity.Property(e => e.Caption).HasColumnName("caption");
+                entity.Property(e => e.FilePath).HasColumnName("file_path");
+                entity.Property(e => e.FileName).HasColumnName("file_name");
+                entity.Property(e => e.ContentType).HasColumnName("content_type");
+                entity.Property(e => e.FileSize).HasColumnName("file_size");
                 entity.Property(e => e.IsPrimary).HasColumnName("is_primary");
                 entity.Property(e => e.DisplayOrder).HasColumnName("display_order");
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at");
@@ -187,6 +201,10 @@ namespace PetRescueConnect.API.Data
             {
                 entity.Property(e => e.Id).HasColumnName("id");
                 entity.Property(e => e.RescueReportId).HasColumnName("rescue_report_id");
+                entity.Property(e => e.FileName).HasColumnName("file_name");
+                entity.Property(e => e.ContentType).HasColumnName("content_type");
+                entity.Property(e => e.FileSize).HasColumnName("file_size");
+                entity.Property(e => e.PhotoData).HasColumnName("photo_data");
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             });
 

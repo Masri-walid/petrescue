@@ -41,9 +41,11 @@ namespace PetRescueConnect.API.Models
         [StringLength(10)]
         public string? ZipCode { get; set; }
 
-        public decimal? Latitude { get; set; }
+        [NotMapped]
+        public double? Latitude { get; set; }
 
-        public decimal? Longitude { get; set; }
+        [NotMapped]
+        public double? Longitude { get; set; }
 
         public string? ProfileImageUrl { get; set; }
 

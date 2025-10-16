@@ -10,16 +10,17 @@ namespace PetRescueConnect.API.Models
         public RescueReport RescueReport { get; set; } = null!;
 
         [Required]
-        [StringLength(500)]
-        public string FilePath { get; set; } = string.Empty;
-
         [StringLength(255)]
-        public string? FileName { get; set; }
+        public string FileName { get; set; } = string.Empty;
 
+        [Required]
         [StringLength(100)]
-        public string? ContentType { get; set; }
+        public string ContentType { get; set; } = string.Empty;
 
         public long FileSize { get; set; }
+
+        [Required]
+        public byte[] PhotoData { get; set; } = Array.Empty<byte>();
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

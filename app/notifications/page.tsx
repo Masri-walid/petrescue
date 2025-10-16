@@ -1,0 +1,419 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { apiClient } from '@/lib/api'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { AlertCircle, MapPin, Phone, Mail, Calendar, Filter } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+
+interface RescueReport {
+  id: string
+  animalType: string
+  breed?: string
+  size?: string
+  color?: string
+  description?: string
+  location: string
+  urgencyLevel: string
+  animalCondition: string
+  reporterName: string
+  reporterPhone: string
+  reporterEmail?: string
+  status: string
+  createdAt: string
+  photos: Array<{
+    id: string
+    fileName: string
+    photoUrl: string
+  }>
+}
+
+interface ReportsResponse {
+  reports: RescueReport[]
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export default function NotificationsPage() {
+  const { user } = useAuth()
+  const router = useRouter()
+  const [reports, setReports] = useState<RescueReport[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [filters, setFilters] = useState({
+    status: 'all',
+    urgency: 'all',
+    search: ''
+  })
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+
+  // Check if user has access to this page
+  useEffect(() => {
+    if (!user) {
+      router.push('/auth/login')
+      return
+    }
+    
+    if (user.role !== 'veterinarian' && user.role !== 'shelter') {
+      router.push('/')
+      return
+    }
+  }, [user, router])
+
+  // Fetch rescue reports
+  const fetchReports = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: '10'
+      })
+      
+      if (filters.status && filters.status !== 'all') params.append('status', filters.status)
+      if (filters.urgency && filters.urgency !== 'all') params.append('urgency', filters.urgency)
+      
+      const response = await apiClient.request<ReportsResponse>(`/RescueReports?${params}`)
+      
+      if (response.error) {
+        setError(response.error)
+      } else {
+        setReports(response.data?.reports || [])
+        setTotalCount(response.data?.totalCount || 0)
+        setTotalPages(response.data?.totalPages || 1)
+      }
+    } catch (err) {
+      console.error('Error fetching reports:', err)
+      setError('Failed to load rescue reports. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (user && (user.role === 'veterinarian' || user.role === 'shelter')) {
+      fetchReports()
+    }
+  }, [user, currentPage, filters])
+
+  const getUrgencyColor = (urgency: string) => {
+    switch (urgency.toLowerCase()) {
+      case 'critical': return 'bg-red-500'
+      case 'high': return 'bg-orange-500'
+      case 'moderate': return 'bg-yellow-500'
+      case 'low': return 'bg-green-500'
+      default: return 'bg-gray-500'
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'reported': return 'bg-blue-500'
+      case 'assigned': return 'bg-purple-500'
+      case 'in_progress': return 'bg-orange-500'
+      case 'resolved': return 'bg-green-500'
+      case 'closed': return 'bg-gray-500'
+      default: return 'bg-gray-500'
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const handleClaimReport = async (reportId: string) => {
+    try {
+      const response = await apiClient.claimRescueReport(reportId)
+      if (response.error) {
+        setError(response.error)
+      } else {
+        // Refresh the reports list
+        fetchReports()
+      }
+    } catch (err) {
+      console.error('Error claiming report:', err)
+      setError('Failed to claim report. Please try again.')
+    }
+  }
+
+  if (!user || (user.role !== 'veterinarian' && user.role !== 'shelter')) {
+    return null // Will redirect in useEffect
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Rescue Reports Dashboard
+        </h1>
+        <p className="text-gray-600">
+          View and manage rescue reports in your area
+        </p>
+      </div>
+
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Status</label>
+              <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="reported">Reported</SelectItem>
+                  <SelectItem value="assigned">Assigned</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="resolved">Resolved</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Urgency</label>
+              <Select value={filters.urgency} onValueChange={(value) => setFilters(prev => ({ ...prev, urgency: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All urgency levels" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All urgency levels</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="moderate">Moderate</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-2">Search</label>
+              <Input
+                placeholder="Search by animal type, location..."
+                value={filters.search}
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-blue-600">{totalCount}</div>
+            <div className="text-sm text-gray-600">Total Reports</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-orange-600">
+              {reports.filter(r => r.status === 'reported').length}
+            </div>
+            <div className="text-sm text-gray-600">Unassigned</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-red-600">
+              {reports.filter(r => r.urgencyLevel === 'critical').length}
+            </div>
+            <div className="text-sm text-gray-600">Critical</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-green-600">
+              {reports.filter(r => r.status === 'resolved').length}
+            </div>
+            <div className="text-sm text-gray-600">Resolved</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <Card className="mb-6 border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertCircle className="h-5 w-5" />
+              {error}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reports List */}
+      {loading ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading rescue reports...</p>
+        </div>
+      ) : reports.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-gray-600">No rescue reports found matching your criteria.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {reports.map((report) => (
+            <Link key={report.id} href={`/reports/${report.id}`}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <Badge className={`${getUrgencyColor(report.urgencyLevel)} text-white`}>
+                      {report.urgencyLevel.toUpperCase()}
+                    </Badge>
+                    <Badge className={`${getStatusColor(report.status)} text-white`}>
+                      {report.status.replace('_', ' ').toUpperCase()}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Calendar className="h-4 w-4" />
+                    {formatDate(report.createdAt)}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">
+                      {report.animalType.charAt(0).toUpperCase() + report.animalType.slice(1)}
+                      {report.breed && ` - ${report.breed}`}
+                    </h3>
+                    
+                    {report.description && (
+                      <p className="text-gray-700 mb-3">{report.description}</p>
+                    )}
+                    
+                    <div className="space-y-2">
+                      {report.size && (
+                        <div className="text-sm">
+                          <span className="font-medium">Size:</span> {report.size}
+                        </div>
+                      )}
+                      {report.color && (
+                        <div className="text-sm">
+                          <span className="font-medium">Color:</span> {report.color}
+                        </div>
+                      )}
+                      <div className="text-sm">
+                        <span className="font-medium">Condition:</span> {report.animalCondition}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
+                      <MapPin className="h-4 w-4" />
+                      {report.location}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium mb-3">Reporter Contact</h4>
+                    <div className="space-y-2">
+                      <div className="text-sm">
+                        <span className="font-medium">Name:</span> {report.reporterName}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="h-4 w-4" />
+                        {report.reporterPhone}
+                      </div>
+                      {report.reporterEmail && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="h-4 w-4" />
+                          {report.reporterEmail}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {report.status === 'reported' && (
+                      <Button
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          handleClaimReport(report.id)
+                        }}
+                        className="mt-4 w-full"
+                      >
+                        Claim Report
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                
+                {report.photos && report.photos.length > 0 && (
+                  <div className="mt-4 pt-4 border-t">
+                    <h4 className="font-medium mb-2">Photos ({report.photos.length})</h4>
+                    <div className="flex gap-2 overflow-x-auto">
+                      {report.photos.map((photo) => (
+                        <img
+                          key={photo.id}
+                          src={photo.photoUrl}
+                          alt={photo.fileName}
+                          className="h-20 w-20 object-cover rounded border flex-shrink-0"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-8">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          
+          <span className="text-sm text-gray-600">
+            Page {currentPage} of {totalPages}
+          </span>
+          
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}

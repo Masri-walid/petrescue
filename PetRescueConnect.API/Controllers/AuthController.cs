@@ -154,6 +154,34 @@ namespace PetRescueConnect.API.Controllers
             });
         }
 
+        [HttpGet("debug/claims")]
+        [Authorize]
+        public IActionResult GetClaims()
+        {
+            var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            var isInVetRole = User.IsInRole("veterinarian");
+            var isInShelterRole = User.IsInRole("shelter");
+
+            return Ok(new {
+                Claims = claims,
+                UserRole = userRole,
+                IsInVetRole = isInVetRole,
+                IsInShelterRole = isInShelterRole
+            });
+        }
+
+        [HttpGet("test-vet-role")]
+        [Authorize(Roles = "veterinarian")]
+        public IActionResult TestVetRole()
+        {
+            return Ok(new {
+                Message = "Veterinarian role access successful",
+                UserRole = User.FindFirst(ClaimTypes.Role)?.Value,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+
         [HttpPost("validate")]
         [Authorize]
         public IActionResult ValidateToken()

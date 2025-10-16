@@ -146,13 +146,17 @@ namespace PetRescueConnect.API.Middleware
 
         private static ErrorResponse HandlePostgresException(PostgresException pgEx)
         {
+            // Log the actual PostgreSQL error for debugging
+            Console.WriteLine($"DEBUG: PostgreSQL Error - SqlState: {pgEx.SqlState}, Message: {pgEx.Message}");
+            Console.WriteLine($"DEBUG: Full exception: {pgEx}");
+
             return pgEx.SqlState switch
             {
                 "42703" => new ErrorResponse // Column does not exist
                 {
                     StatusCode = (int)HttpStatusCode.InternalServerError,
                     Message = "Database column not found",
-                    Details = $"Column '{ExtractColumnName(pgEx.Message)}' does not exist in the database. This indicates a schema mismatch.",
+                    Details = $"Column '{ExtractColumnName(pgEx.Message)}' does not exist in the database. This indicates a schema mismatch. Full error: {pgEx.Message}",
                     ErrorCode = "COLUMN_NOT_FOUND"
                 },
                 "42P01" => new ErrorResponse // Table does not exist

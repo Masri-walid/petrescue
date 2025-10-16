@@ -25,7 +25,7 @@ namespace PetRescueConnect.API.Controllers
         // All temporary photo methods removed for simplification
 
         [HttpPost("animals/{animalId}/photos")]
-        [Authorize(Roles = "Shelter,Veterinarian")]
+        [Authorize(Roles = "shelter,veterinarian")]
         public async Task<ActionResult<List<AnimalPhotoDto>>> UploadAnimalPhotos(
             Guid animalId,
             IFormFileCollection files)
@@ -37,10 +37,15 @@ namespace PetRescueConnect.API.Controllers
             }
 
             // Check if user has permission to upload photos for this animal
-            var organizationIdClaim = User.FindFirst("OrganizationId")?.Value;
-            if (string.IsNullOrEmpty(organizationIdClaim) || 
-                !Guid.TryParse(organizationIdClaim, out Guid organizationId) ||
-                animal.OrganizationId != organizationId)
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId))
+            {
+                return Unauthorized();
+            }
+
+            // For now, use user ID as organization ID (simulating each user is their own organization)
+            var organizationId = userId;
+            if (animal.OrganizationId != organizationId)
             {
                 return Forbid();
             }
@@ -53,8 +58,10 @@ namespace PetRescueConnect.API.Controllers
                 var animalPhoto = new AnimalPhoto
                 {
                     AnimalId = animalId,
-                    PhotoUrl = result.Url, // Use the URL instead of file path
-                    Caption = null, // Can be set later
+                    FilePath = result.Url, // Use the URL as file path
+                    FileName = null, // Can be set later
+                    ContentType = "image/jpeg", // Default content type
+                    FileSize = null, // Unknown for external URLs
                     IsPrimary = false,
                     DisplayOrder = 0, // Can be set later
                     CreatedAt = DateTime.UtcNow
@@ -66,8 +73,8 @@ namespace PetRescueConnect.API.Controllers
                 photoResults.Add(new AnimalPhotoDto
                 {
                     Id = animalPhoto.Id,
-                    PhotoUrl = animalPhoto.PhotoUrl,
-                    Caption = animalPhoto.Caption,
+                    PhotoUrl = animalPhoto.FilePath ?? "",
+                    Caption = animalPhoto.FileName ?? "",
                     IsPrimary = animalPhoto.IsPrimary,
                     DisplayOrder = animalPhoto.DisplayOrder
                 });
@@ -81,7 +88,7 @@ namespace PetRescueConnect.API.Controllers
 
 
         [HttpPut("animals/{animalId}/photos/{photoId}/primary")]
-        [Authorize(Roles = "Shelter,Veterinarian")]
+        [Authorize(Roles = "shelter,veterinarian")]
         public async Task<IActionResult> SetPrimaryPhoto(Guid animalId, Guid photoId)
         {
             var animal = await _context.Animals.FindAsync(animalId);
@@ -114,7 +121,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpDelete("animals/photos/{photoId}")]
-        [Authorize(Roles = "Shelter,Veterinarian")]
+        [Authorize(Roles = "shelter,veterinarian")]
         public async Task<IActionResult> DeleteAnimalPhoto(Guid photoId)
         {
             var photo = await _context.AnimalPhotos
@@ -135,7 +142,7 @@ namespace PetRescueConnect.API.Controllers
                 return Forbid();
             }
 
-            var deleted = await _imageService.DeleteImageAsync(photo.PhotoUrl);
+            var deleted = await _imageService.DeleteImageAsync(photo.FilePath ?? "");
             
             if (deleted)
             {

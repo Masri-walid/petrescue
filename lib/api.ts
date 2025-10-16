@@ -211,7 +211,12 @@ class ApiClient {
     // Add all report data fields to FormData (PascalCase)
     Object.keys(backendData).forEach(key => {
       if (backendData[key] !== null && backendData[key] !== undefined) {
-        formData.append(key, backendData[key].toString())
+        let value = backendData[key]
+        // Ensure decimal values are formatted with dot as decimal separator
+        if (key === 'Latitude' || key === 'Longitude') {
+          value = Number(value).toFixed(8) // Use fixed precision and ensure dot separator
+        }
+        formData.append(key, value.toString())
       }
     })
 
@@ -250,15 +255,15 @@ class ApiClient {
       page: number
       pageSize: number
       totalPages: number
-    }>(`/rescuereports?${searchParams.toString()}`)
+    }>(`/RescueReports?${searchParams.toString()}`)
   }
 
   async getUserRescueReports(userId: string) {
-    return this.request<any[]>(`/rescuereports/user/${userId}`)
+    return this.request<any[]>(`/RescueReports/user/${userId}`)
   }
 
   async getUnhandledReportsCount() {
-    return this.request<{ count: number }>(`/rescuereports/unhandled/count`)
+    return this.request<{ count: number }>(`/RescueReports/unhandled/count`)
   }
 
   async claimRescueReport(reportId: string) {
@@ -268,7 +273,7 @@ class ApiClient {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        organizationId: "current-user-org" // This will be handled by backend
+        organizationId: "00000000-0000-0000-0000-000000000000" // Backend will use user's actual organization
       }),
     })
   }

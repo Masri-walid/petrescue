@@ -11,10 +11,15 @@ namespace PetRescueConnect.API.Models
 
         [Required]
         [StringLength(500)]
-        public string PhotoUrl { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
 
-        [StringLength(500)]
-        public string? Caption { get; set; }
+        [StringLength(255)]
+        public string? FileName { get; set; }
+
+        [StringLength(100)]
+        public string? ContentType { get; set; }
+
+        public long? FileSize { get; set; }
 
         public bool IsPrimary { get; set; } = false;
 

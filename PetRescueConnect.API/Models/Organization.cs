@@ -16,6 +16,7 @@ namespace PetRescueConnect.API.Models
         [StringLength(50)]
         public string OrganizationType { get; set; } = string.Empty; // shelter, rescue, veterinary_clinic, sanctuary
 
+        [NotMapped]
         public string? Description { get; set; }
 
         [Required]
@@ -45,10 +46,12 @@ namespace PetRescueConnect.API.Models
         [StringLength(255)]
         public string? Website { get; set; }
 
+        [NotMapped]
         [StringLength(100)]
         public string? LicenseNumber { get; set; }
 
-        // Spatial data using PostGIS POINT column
+        // Spatial data using PostGIS POINT column - not in database yet
+        [NotMapped]
         public Point Coordinates { get; set; } = null!;
 
         // Computed properties for backward compatibility
@@ -78,13 +81,22 @@ namespace PetRescueConnect.API.Models
             }
         }
 
+        [NotMapped]
         public decimal Rating { get; set; } = 0;
+
+        [NotMapped]
         public int ReviewCount { get; set; } = 0;
 
+        [NotMapped]
         public int? Capacity { get; set; }
+
+        [NotMapped]
         public int CurrentAnimalCount { get; set; } = 0;
 
+        [NotMapped]
         public bool IsFeatured { get; set; } = false;
+
+        [NotMapped]
         public bool IsVerified { get; set; } = false;
         public bool IsActive { get; set; } = true;
 
