@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { UserProfileMenu } from './user-profile-menu'
 import { UserProfileHybrid } from './user-profile-hybrid'
-import { NotificationBell } from './notification-bell'
 import { Button } from '@/components/ui/button'
 import { Heart } from 'lucide-react'
 
@@ -35,12 +34,20 @@ export function NavigationHeader() {
             <Link href="/shelters" className="text-muted-foreground hover:text-foreground transition-colors">
               Shelters
             </Link>
+            <Link href="/rescue-dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
+              Rescue Reports
+            </Link>
 
             {/* Role-based navigation for vets and shelters */}
             {user && (user.role === 'veterinarian' || user.role === 'shelter') && (
-              <Link href="/notifications" className="text-muted-foreground hover:text-foreground transition-colors">
-                Reports Dashboard
-              </Link>
+              <>
+                <Link href="/profile/animals" className="text-muted-foreground hover:text-foreground transition-colors">
+                  My Animals
+                </Link>
+                <Link href="/notifications" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Notifications
+                </Link>
+              </>
             )}
 
             {/* Authentication-based navigation */}
@@ -48,7 +55,6 @@ export function NavigationHeader() {
               <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
             ) : isAuthenticated ? (
               <div className="flex items-center gap-2">
-                <NotificationBell />
                 <UserProfileHybrid />
               </div>
             ) : (
@@ -69,7 +75,6 @@ export function NavigationHeader() {
               <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
             ) : isAuthenticated ? (
               <div className="flex items-center gap-2">
-                <NotificationBell />
                 <UserProfileHybrid />
               </div>
             ) : (

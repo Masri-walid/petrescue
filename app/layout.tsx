@@ -2,10 +2,9 @@ import type React from "react"
 import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
-import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
-import { AuthProvider } from "@/contexts/AuthContext"
-import "./globals.css"
+import { Providers } from "@/components/providers"
+import "../styles/globals.css"
 
 export const metadata: Metadata = {
   title: "PetRescue Connect - Smart Platform for Animal Rescue & Adoption",
@@ -22,10 +21,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <AuthProvider>
+        <Providers>
           <Suspense fallback={null}>{children}</Suspense>
-        </AuthProvider>
-        <Analytics />
+        </Providers>
       </body>
     </html>
   )

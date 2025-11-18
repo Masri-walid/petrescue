@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
+import { apiClient } from '@/lib/api'
+import { getProfileImageUrl } from '@/lib/profile-image-utils'
 import { NavigationHeader } from '@/components/navigation-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,9 +15,9 @@ import { User, Mail, Phone, MapPin, Save, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ProfileEditPage() {
-  const { user, isAuthenticated, refreshUser } = useAuth()
+  const { user, isAuthenticated, isLoading, refreshUser, profileVersion } = useAuth()
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   
@@ -28,19 +30,20 @@ export default function ProfileEditPage() {
     city: '',
     state: '',
     zipCode: '',
+    profileImageUrl: '',
   })
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated, but wait until auth loading is finished
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isLoading && !isAuthenticated) {
       router.push('/login')
-      return
     }
-  }, [isAuthenticated, router])
+  }, [isLoading, isAuthenticated, router])
 
   // Populate form with user data
   useEffect(() => {
     if (user) {
+      console.log('Populating form with user data:', user) // Debug log
       setFormData({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
@@ -50,6 +53,7 @@ export default function ProfileEditPage() {
         city: user.city || '',
         state: user.state || '',
         zipCode: user.zipCode || '',
+        profileImageUrl: user.profileImageUrl || '',
       })
     }
   }, [user])
@@ -62,33 +66,62 @@ export default function ProfileEditPage() {
     e.preventDefault()
     setError('')
     setSuccess('')
-    setIsLoading(true)
+    setIsSaving(true)
 
     try {
-      const response = await apiClient.updateProfile({
+      // Prepare profile data - only include profileImageUrl if it's a valid external URL
+      const profileData: any = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        phone: formData.phone
-      })
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+      }
+
+      // Only include profileImageUrl if it's a valid external URL (not our API endpoint)
+      if (formData.profileImageUrl &&
+          !formData.profileImageUrl.includes('/api/images/profile/') &&
+          formData.profileImageUrl.trim() !== '') {
+        profileData.profileImageUrl = formData.profileImageUrl
+      }
+
+      const response = await apiClient.updateProfile(profileData)
+
+      console.log('Profile update response:', response)
 
       if (response.error) {
+        console.error('Profile update error from API:', response.error)
         setError(response.error)
-      } else {
+      } else if (response.data || response.success !== false) {
         setSuccess('Profile updated successfully!')
         await refreshUser()
 
         // Redirect after 2 seconds
         setTimeout(() => {
-          router.push('/')
+          router.push('/profile')
         }, 2000)
+      } else {
+        setError('Failed to update profile. Please check your information and try again.')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Profile update error:', error)
-      setError('Failed to update profile. Please try again.')
+
+      // More detailed error handling
+      if (error.response) {
+        console.error('Response status:', error.response.status)
+        console.error('Response data:', error.response.data)
+        setError(`Failed to update profile: ${error.response.data?.message || error.response.statusText}`)
+      } else if (error.message) {
+        setError(`Failed to update profile: ${error.message}`)
+      } else {
+        setError('Failed to update profile. Please try again.')
+      }
     }
 
-    setIsLoading(false)
+    setIsSaving(false)
   }
 
   if (!isAuthenticated || !user) {
@@ -200,6 +233,56 @@ export default function ProfileEditPage() {
                     className="pl-10"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="profileImageUrl">Profile Picture</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="profileImageUrl"
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        try {
+                          const response = await apiClient.uploadProfileImage(file)
+                          if (response.error) {
+                            alert(`Error uploading image: ${response.error}`)
+                          } else {
+                            // Image uploaded successfully as binary data
+                            // Refresh user data to get the updated profile image URL
+                            await refreshUser()
+                            setSuccess('Profile image uploaded successfully!')
+                            // Clear the profileImageUrl since we're using binary storage
+                            handleInputChange('profileImageUrl', '')
+                          }
+                        } catch (error) {
+                          console.error('Error uploading profile image:', error)
+                          alert('Failed to upload image. Please try again.')
+                        }
+                      }
+                    }}
+                    className="pl-10"
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Upload an image file for your profile picture. Supported formats: JPG, PNG, GIF.
+                </p>
+                {(formData.profileImageUrl || user?.profileImageUrl) && (
+                  <div className="mt-2">
+                    <img
+                      src={(() => {
+                        const base = getProfileImageUrl(formData.profileImageUrl || user?.profileImageUrl)
+                        if (!base) return ''
+                        return `${base}${base.includes('?') ? '&' : '?'}pv=${profileVersion}`
+                      })()}
+                      alt="Profile preview"
+                      className="w-20 h-20 rounded-full object-cover border"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Address Fields */}

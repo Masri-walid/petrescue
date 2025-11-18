@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        button { margin: 10px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>API Test</h1>
+    <button onclick="testAPI()">Test API</button>
+    <button onclick="testRegistration()">Test Registration</button>
+    <button onclick="testLogin()">Test Login (user@example.com / string)</button>
+    <div id="results"></div>
+    
+    <script>
+        const API_BASE_URL = 'http://localhost:5149/api';
+        
+        function log(message, isError = false) {
+            const results = document.getElementById('results');
+            const p = document.createElement('p');
+            p.className = isError ? 'error' : 'success';
+            p.innerHTML = message;
+            results.appendChild(p);
+        }
+        
+        async function testAPI() {
+            log('Testing basic API endpoint...');
+            try {
+                const response = await fetch(`${API_BASE_URL}/test`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                log(`✅ Test endpoint: ${JSON.stringify(data)}`);
+            } catch (error) {
+                log(`❌ Test endpoint failed: ${error.message}`, true);
+            }
+        }
+        
+        async function testRegistration() {
+            log('Testing registration...');
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3000'
+                    },
+                    body: JSON.stringify({
+                        firstName: 'Test',
+                        lastName: 'User',
+                        email: 'test@example.com',
+                        password: 'password123',
+                        userType: 'citizen'
+                    })
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                log(`✅ Registration: ${JSON.stringify(data)}`);
+            } catch (error) {
+                log(`❌ Registration failed: ${error.message}`, true);
+            }
+        }
+        
+        async function testLogin() {
+            log('Testing login with user@example.com / string...');
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3000'
+                    },
+                    body: JSON.stringify({
+                        email: 'user@example.com',
+                        password: 'string'
+                    })
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                log(`✅ Login: ${JSON.stringify(data)}`);
+            } catch (error) {
+                log(`❌ Login failed: ${error.message}`, true);
+            }
+        }
+        
+        // Clear results
+        document.getElementById('results').innerHTML = '';
+        log('Ready to test API. Click buttons above.');
+    </script>
+</body>
+</html>

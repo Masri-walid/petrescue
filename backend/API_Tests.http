@@ -1,0 +1,161 @@
+### PetRescue Connect API Tests
+@baseUrl = http://localhost:5149
+@contentType = application/json
+
+### 1. Test API Connection
+GET {{baseUrl}}/api/test
+
+### 2. Register a new user
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "john.doe@example.com",
+  "password": "SecurePassword123!",
+  "firstName": "John",
+  "lastName": "Doe",
+  "userType": "volunteer",
+  "phone": "555-0123"
+}
+
+### 3. Login user
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "john.doe@example.com",
+  "password": "SecurePassword123!"
+}
+
+### 4. Create an organization (requires authentication)
+POST {{baseUrl}}/api/organizations
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+{
+  "name": "Happy Paws Rescue",
+  "organizationType": "rescue",
+  "description": "A local animal rescue organization",
+  "address": "123 Main Street",
+  "city": "Springfield",
+  "state": "IL",
+  "zipCode": "62701",
+  "phone": "555-0199",
+  "email": "info@happypaws.org",
+  "website": "https://happypaws.org"
+}
+
+### 5. Get all organizations
+GET {{baseUrl}}/api/organizations
+
+### 6. Create an animal
+POST {{baseUrl}}/api/animals
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+{
+  "name": "Buddy",
+  "species": "dog",
+  "breed": "Golden Retriever",
+  "age": 3,
+  "gender": "male",
+  "size": "large",
+  "color": "golden",
+  "description": "Friendly and energetic dog looking for a loving home",
+  "medicalInfo": "Up to date on vaccinations",
+  "behaviorInfo": "Good with children and other dogs",
+  "adoptionStatus": "available",
+  "featured": true,
+  "organizationId": "ORGANIZATION_ID_HERE"
+}
+
+### 7. Get all animals
+GET {{baseUrl}}/api/animals
+
+### 8. Search animals by species
+GET {{baseUrl}}/api/animals?species=dog
+
+### 9. Get featured animals
+GET {{baseUrl}}/api/animals?featured=true
+
+### 10. Get available animals
+GET {{baseUrl}}/api/animals?status=available
+
+### 11. Search animals by name/description
+GET {{baseUrl}}/api/animals/search?searchTerm=Buddy
+
+### 12. Post a rescue report
+POST {{baseUrl}}/api/rescuereports
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+{
+  "animalDescription": "Small brown dog, appears injured",
+  "location": "Corner of Oak and Main Street",
+  "urgencyLevel": "high",
+  "reporterName": "Jane Smith",
+  "reporterPhone": "555-0156",
+  "reporterEmail": "jane.smith@email.com",
+  "additionalNotes": "Dog appears to have a limp and looks scared"
+}
+
+### 13. Get rescue reports (requires authentication)
+GET {{baseUrl}}/api/rescuereports
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 14. Filter rescue reports by status
+GET {{baseUrl}}/api/rescuereports?status=pending
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 15. Filter rescue reports by urgency
+GET {{baseUrl}}/api/rescuereports?urgencyLevel=high
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 16. Submit adoption application
+POST {{baseUrl}}/api/adoptionapplications
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+{
+  "animalId": "ANIMAL_ID_HERE",
+  "applicantId": "USER_ID_HERE",
+  "organizationId": "ORGANIZATION_ID_HERE",
+  "applicationData": {
+    "hasExperience": true,
+    "hasOtherPets": false,
+    "livingArrangement": "house with yard",
+    "reasonForAdoption": "Looking for a companion for my family",
+    "references": [
+      {
+        "name": "Dr. Smith",
+        "phone": "555-0199",
+        "relationship": "veterinarian"
+      }
+    ]
+  }
+}
+
+### 17. Get adoption applications (requires authentication)
+GET {{baseUrl}}/api/adoptionapplications
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 18. Get all users (requires authentication)
+GET {{baseUrl}}/api/users
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 19. Get user by ID
+GET {{baseUrl}}/api/users/USER_ID_HERE
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 20. Update user profile
+PUT {{baseUrl}}/api/users/USER_ID_HERE
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@example.com",
+  "phone": "555-0123",
+  "userType": "volunteer"
+}

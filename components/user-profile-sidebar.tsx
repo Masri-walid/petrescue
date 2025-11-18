@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getProfileImageUrl, getUserInitials, getUserDisplayName } from '@/lib/profile-image-utils'
 import {
   User,
   Settings,
@@ -15,15 +16,21 @@ import {
   Stethoscope,
   X,
   PlusCircle,
-  AlertTriangle
+  AlertTriangle,
+  Heart
 } from 'lucide-react'
 
 export function UserProfileSidebar() {
-  const { user, logout } = useAuth()
+  const { user, logout, profileVersion } = useAuth()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
 
   if (!user) return null
+
+  const rawProfileImageUrl = getProfileImageUrl(user.profileImageUrl)
+  const profileAvatarSrc = rawProfileImageUrl
+    ? `${rawProfileImageUrl}${rawProfileImageUrl.includes('?') ? '&' : '?'}pv=${profileVersion}`
+    : undefined
 
   const handleLogout = () => {
     logout()
@@ -37,7 +44,7 @@ export function UserProfileSidebar() {
   }
 
   const handleMyReports = () => {
-    router.push('/profile/reports')
+    router.push('/user-reports')
     setIsOpen(false)
   }
 
@@ -46,7 +53,18 @@ export function UserProfileSidebar() {
     setIsOpen(false)
   }
 
-  const getRoleIcon = (role: string) => {
+  const handleMyAnimals = () => {
+    router.push('/profile/animals')
+    setIsOpen(false)
+  }
+
+  const handleProfile = () => {
+    router.push('/profile')
+    setIsOpen(false)
+  }
+
+  const getRoleIcon = (role: string | undefined) => {
+    if (!role) return <User className="w-4 h-4" />
     switch (role.toLowerCase()) {
       case 'shelter':
         return <Building className="w-4 h-4" />
@@ -59,7 +77,8 @@ export function UserProfileSidebar() {
     }
   }
 
-  const getRoleLabel = (role: string) => {
+  const getRoleLabel = (role: string | undefined) => {
+    if (!role) return 'Citizen'
     switch (role.toLowerCase()) {
       case 'shelter':
         return 'Shelter'
@@ -72,9 +91,7 @@ export function UserProfileSidebar() {
     }
   }
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase()
-  }
+
 
   return (
     <>
@@ -85,9 +102,9 @@ export function UserProfileSidebar() {
         onClick={() => setIsOpen(true)}
       >
         <Avatar className="h-10 w-10">
-          <AvatarImage src={user.profileImageUrl} alt={`${user.firstName} ${user.lastName}`} />
+          <AvatarImage src={profileAvatarSrc} alt={getUserDisplayName(user.firstName, user.lastName)} />
           <AvatarFallback className="bg-primary text-primary-foreground">
-            {getInitials(user.firstName, user.lastName)}
+            {getUserInitials(user.firstName, user.lastName)}
           </AvatarFallback>
         </Avatar>
       </Button>
@@ -101,9 +118,14 @@ export function UserProfileSidebar() {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-50 ${
-        isOpen ? 'translate-x-0' : 'translate-x-full'
-      }`}>
+      <div
+        className={`fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0 z-50' : 'translate-x-full -z-10 pointer-events-none opacity-0'
+        }`}
+        style={{
+          visibility: isOpen ? 'visible' : 'hidden'
+        }}
+      >
         <div className="p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
@@ -120,12 +142,12 @@ export function UserProfileSidebar() {
           {/* User Info */}
           <div className="flex flex-col items-center mb-6">
             <Avatar className="h-20 w-20 mb-4">
-              <AvatarImage src={user.profileImageUrl} alt={`${user.firstName} ${user.lastName}`} />
+              <AvatarImage src={profileAvatarSrc} alt={getUserDisplayName(user.firstName, user.lastName)} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                {getInitials(user.firstName, user.lastName)}
+                {getUserInitials(user.firstName, user.lastName)}
               </AvatarFallback>
             </Avatar>
-            
+
             <div className="text-center">
               <div className="flex items-center gap-2 justify-center mb-2">
                 <h3 className="text-lg font-medium">
@@ -169,15 +191,24 @@ export function UserProfileSidebar() {
 
           {/* Menu Items */}
           <div className="space-y-2">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={handleProfile}
+            >
+              <User className="mr-3 h-4 w-4" />
+              My Profile
+            </Button>
+
+            <Button
+              variant="ghost"
               className="w-full justify-start"
               onClick={handleProfileEdit}
             >
               <Settings className="mr-3 h-4 w-4" />
               Edit Profile
             </Button>
-            
+
             <Button
               variant="ghost"
               className="w-full justify-start"
@@ -187,9 +218,17 @@ export function UserProfileSidebar() {
               My Reports
             </Button>
 
-            {/* Add Animal button - only for shelters and veterinarians */}
+            {/* Animal management buttons - only for shelters and veterinarians */}
             {(user.role === 'shelter' || user.role === 'veterinarian') && (
               <>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={handleMyAnimals}
+                >
+                  <Heart className="mr-3 h-4 w-4" />
+                  My Animals
+                </Button>
                 <Button
                   variant="ghost"
                   className="w-full justify-start"

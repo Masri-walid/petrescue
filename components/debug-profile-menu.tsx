@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
+import { getProfileImageUrl, getUserInitials } from '@/lib/profile-image-utils'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,9 +86,9 @@ export function DebugProfileMenu() {
             onClick={() => console.log('Avatar clicked!')}
           >
             <Avatar className="h-10 w-10">
-              <AvatarImage src={user.profileImageUrl} alt={`${user.firstName} ${user.lastName}`} />
+              <AvatarImage src={getProfileImageUrl(user.profileImageUrl)} alt={`${user.firstName} ${user.lastName}`} />
               <AvatarFallback className="bg-primary text-primary-foreground">
-                {getInitials(user.firstName, user.lastName)}
+                {getUserInitials(user.firstName, user.lastName)}
               </AvatarFallback>
             </Avatar>
           </Button>

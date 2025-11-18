@@ -6,77 +6,86 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Slider } from "@/components/ui/slider"
 import {
-  Heart,
   MapPin,
   Phone,
   Clock,
   PawPrint,
-  Navigation,
   Search,
-  ArrowLeft,
   Star,
-  LucideCaptions as Directions,
-  Settings,
+  Building,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { apiClient } from "@/lib/api"
+import { getProfileImageUrl } from "@/lib/profile-image-utils"
+import { NavigationHeader } from "@/components/navigation-header"
 
 export default function SheltersPage() {
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [typeFilter, setTypeFilter] = useState("All Types")
-  const [sortBy, setSortBy] = useState("distance")
-  const [viewMode, setViewMode] = useState<"list" | "map">("list")
-  const [locationPermission, setLocationPermission] = useState<"granted" | "denied" | "pending">("pending")
-  const [searchRadius, setSearchRadius] = useState([30])
-  const [showRadiusControl, setShowRadiusControl] = useState(false)
+  const [sortBy, setSortBy] = useState("name")
   const [organizations, setOrganizations] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
-          setLocationPermission("granted")
-        },
-        (error) => {
-          console.error("Error getting location:", error)
-          setLocationPermission("denied")
-        },
-      )
-    }
-  }, [])
+    fetchData()
+  }, [searchTerm, typeFilter, sortBy])
 
-  useEffect(() => {
-    fetchOrganizations()
-  }, [searchTerm, typeFilter, sortBy, userLocation, searchRadius])
-
-  const fetchOrganizations = async () => {
+  const fetchData = async () => {
     setLoading(true)
     setError(null)
 
-    const response = await apiClient.getOrganizations({
-      search: searchTerm || undefined,
-      type: typeFilter !== "All Types" ? typeFilter : undefined,
-      latitude: userLocation?.lat,
-      longitude: userLocation?.lng,
-      radius: searchRadius[0],
-      sortBy: sortBy,
-    })
+    try {
+      // Fetch organizations
+      const orgResponse = await apiClient.getOrganizations({
+        search: searchTerm || undefined,
+        type: typeFilter !== "All Types" ? typeFilter : undefined,
+        sortBy: sortBy,
+      })
 
-    if (response.error) {
-      setError(response.error)
-    } else if (response.data) {
-      setOrganizations(response.data)
+      // Fetch users who are vets or shelters
+      const usersResponse = await apiClient.request('/users/by-type', {
+        method: 'GET',
+      })
+
+      if (orgResponse.error) {
+        setError(orgResponse.error)
+      } else if (orgResponse.data) {
+        setOrganizations(orgResponse.data)
+      }
+
+      if (usersResponse.data) {
+        // The backend now filters to only vets and shelters, so no need to filter again
+        let searchFilteredUsers = usersResponse.data
+
+        // Apply search filter to users if needed
+        if (searchTerm) {
+          const searchLower = searchTerm.toLowerCase()
+          searchFilteredUsers = usersResponse.data.filter((user: any) =>
+            user.firstName?.toLowerCase().includes(searchLower) ||
+            user.lastName?.toLowerCase().includes(searchLower) ||
+            user.city?.toLowerCase().includes(searchLower) ||
+            user.state?.toLowerCase().includes(searchLower)
+          )
+        }
+
+        // Apply type filter to users
+        if (typeFilter !== "All Types") {
+          if (typeFilter === "veterinary_clinic") {
+            searchFilteredUsers = searchFilteredUsers.filter((user: any) => user.userType === 'veterinarian')
+          } else if (typeFilter === "shelter") {
+            searchFilteredUsers = searchFilteredUsers.filter((user: any) => user.userType === 'shelter')
+          }
+        }
+
+        setUsers(searchFilteredUsers)
+      }
+    } catch (err) {
+      console.error('Error fetching data:', err)
+      setError('Failed to load data')
     }
 
     setLoading(false)
@@ -85,24 +94,36 @@ export default function SheltersPage() {
   const featuredOrganizations = organizations.filter((org) => org.featured)
   const regularOrganizations = organizations.filter((org) => !org.featured)
 
-  const requestLocation = () => {
-    if (navigator.geolocation) {
-      setLocationPermission("pending")
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
-          setLocationPermission("granted")
-        },
-        (error) => {
-          console.error("Error getting location:", error)
-          setLocationPermission("denied")
-        },
-      )
+  // Convert users to organization-like format for display
+  const userOrganizations = users.map((user) => {
+    // Get the primary photo or first photo if available
+    const primaryPhoto = user.userPhotos?.find((photo: any) => photo.isPrimary) || user.userPhotos?.[0]
+    const photoUrl = getProfileImageUrl(primaryPhoto?.photoUrl || user.profileImageUrl)
+
+    return {
+      id: user.id,
+      name: `${user.firstName} ${user.lastName}`,
+      organizationType: user.userType === 'veterinarian' ? 'veterinary_clinic' : 'shelter',
+      description: `${user.userType === 'veterinarian' ? 'Veterinarian' : 'Shelter'} - Individual Provider`,
+      address: user.address || 'Address not provided',
+      city: user.city || '',
+      state: user.state || '',
+      zipCode: user.zipCode || '',
+      phone: user.phone || '',
+      email: user.email || '',
+      website: null,
+      licenseNumber: null,
+      capacity: null,
+      currentAnimalCount: 0,
+      rating: null,
+      reviewCount: 0,
+      isVerified: user.isVerified || false,
+      isFeatured: false,
+      profileImageUrl: photoUrl,
+      isUser: true, // Flag to identify this as a user entry
+      userPhotos: user.userPhotos || [] // Include all photos for potential gallery view
     }
-  }
+  })
 
   if (loading && organizations.length === 0) {
     return (
@@ -128,61 +149,20 @@ export default function SheltersPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <ArrowLeft className="w-5 h-5" />
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Heart className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold text-foreground">PetRescue Connect</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-6">
-              <Link href="/rescue" className="text-muted-foreground hover:text-foreground transition-colors">
-                Report Rescue
-              </Link>
-              <Link href="/adopt" className="text-muted-foreground hover:text-foreground transition-colors">
-                Adopt
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <NavigationHeader />
 
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <Badge variant="secondary" className="mb-4">
-            <MapPin className="w-4 h-4 mr-1" />
-            Find Local Shelters
+            <Building className="w-4 h-4 mr-1" />
+            Find Shelters & Rescues
           </Badge>
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">Animal Shelters & Rescues Near You</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">Animal Shelters & Rescues</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Connect with local shelters and rescue organizations to adopt pets, volunteer, or get help with animal
             rescue.
           </p>
         </div>
-
-        {locationPermission === "denied" && (
-          <Card className="mb-6 border-orange-200 bg-orange-50/50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Navigation className="w-5 h-5 text-orange-600" />
-                  <div>
-                    <p className="font-medium text-orange-800">Enable location for better results</p>
-                    <p className="text-sm text-orange-700">
-                      Allow location access to find shelters near you and get accurate distances
-                    </p>
-                  </div>
-                </div>
-                <Button variant="outline" onClick={requestLocation} className="bg-transparent">
-                  Enable Location
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         <div className="mb-8">
           <div className="flex flex-col md:flex-row gap-4 mb-4">
@@ -212,99 +192,46 @@ export default function SheltersPage() {
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="distance">Distance</SelectItem>
-                <SelectItem value="rating">Rating</SelectItem>
                 <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="rating">Rating</SelectItem>
               </SelectContent>
             </Select>
-            <Button
-              variant="outline"
-              onClick={() => setShowRadiusControl(!showRadiusControl)}
-              className="bg-transparent"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Radius
-            </Button>
           </div>
-
-          {showRadiusControl && (
-            <Card className="mb-4">
-              <CardContent className="p-4">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span>Search Radius</span>
-                    <span className="text-sm font-medium">{searchRadius[0]} km</span>
-                  </div>
-                  <Slider
-                    value={searchRadius}
-                    onValueChange={setSearchRadius}
-                    max={100}
-                    min={5}
-                    step={5}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>5 km</span>
-                    <span>50 km</span>
-                    <span>100 km</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           <div className="flex items-center justify-between">
             <p className="text-muted-foreground">
-              Found {organizations.length} shelters and vets
-              {userLocation && ` within ${searchRadius[0]} km`}
+              Found {organizations.length} shelters and rescues
             </p>
-            <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "list" | "map")}>
-              <TabsList>
-                <TabsTrigger value="list">List View</TabsTrigger>
-                <TabsTrigger value="map">Map View</TabsTrigger>
-              </TabsList>
-            </Tabs>
           </div>
         </div>
 
-        {viewMode === "list" ? (
-          <div className="space-y-8">
-            {featuredOrganizations.length > 0 && (
-              <div>
-                <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                  <Star className="w-6 h-6 text-yellow-500" />
-                  Featured Shelters
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {featuredOrganizations.map((organization) => (
-                    <ShelterCard key={organization.id} shelter={organization} featured />
-                  ))}
-                </div>
-              </div>
-            )}
-
+        <div className="space-y-8">
+          {featuredOrganizations.length > 0 && (
             <div>
-              <h2 className="text-2xl font-bold mb-4">All Shelters & Rescues</h2>
+              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                <Star className="w-6 h-6 text-yellow-500" />
+                Featured Shelters
+              </h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {regularOrganizations.map((organization) => (
-                  <ShelterCard key={organization.id} shelter={organization} />
+                {featuredOrganizations.map((organization) => (
+                  <ShelterCard key={organization.id} shelter={organization} featured />
                 ))}
               </div>
             </div>
+          )}
+
+          <div>
+            <h2 className="text-2xl font-bold mb-4">All Shelters & Rescues</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {regularOrganizations.map((organization) => (
+                <ShelterCard key={organization.id} shelter={organization} />
+              ))}
+              {userOrganizations.map((userOrg) => (
+                <ShelterCard key={`user-${userOrg.id}`} shelter={userOrg} />
+              ))}
+            </div>
           </div>
-        ) : (
-          <Card className="h-96">
-            <CardContent className="p-6 h-full flex items-center justify-center">
-              <div className="text-center">
-                <MapPin className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Interactive Map</h3>
-                <p className="text-muted-foreground">
-                  Map view would show shelter locations with interactive markers and directions
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        </div>
       </div>
     </div>
   )
@@ -378,7 +305,6 @@ function ShelterCard({ shelter, featured = false }: { shelter: any; featured?: b
             <p>{shelter.address}</p>
             <p className="text-muted-foreground">
               {shelter.city}, {shelter.state} {shelter.zipCode}
-              {shelter.distance && ` • ${shelter.distance.toFixed(1)} km`}
             </p>
           </div>
         </div>
@@ -415,9 +341,6 @@ function ShelterCard({ shelter, featured = false }: { shelter: any; featured?: b
           </Button>
           <Button variant="outline" size="icon" className="bg-transparent">
             <Phone className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="icon" className="bg-transparent">
-            <Directions className="w-4 h-4" />
           </Button>
         </div>
       </CardContent>

@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5149/api"
 
 interface ApiResponse<T> {
   data?: T
@@ -13,7 +13,8 @@ class ApiClient {
   constructor(baseURL: string) {
     this.baseURL = baseURL
     if (typeof window !== "undefined") {
-      this.token = localStorage.getItem("auth_token")
+      // Check both localStorage and sessionStorage for token
+      this.token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token")
     }
   }
 
@@ -28,14 +29,15 @@ class ApiClient {
     this.token = null
     if (typeof window !== "undefined") {
       localStorage.removeItem("auth_token")
+      sessionStorage.removeItem("auth_token")
     }
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`
 
-    const headers: HeadersInit = {
-      ...options.headers,
+    const headers: Record<string, string> = {
+      ...(options.headers as Record<string, string>),
     }
 
     // Only set Content-Type for non-FormData requests
@@ -44,7 +46,7 @@ class ApiClient {
     }
 
     if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`
+      headers["Authorization"] = `Bearer ${this.token}`
     }
 
     try {
@@ -89,7 +91,25 @@ class ApiClient {
     password: string
     phone?: string
     role: string
+    address?: string
+    city?: string
+    state?: string
+    zipCode?: string
   }) {
+    // Convert frontend 'role' to backend 'UserType'
+    const backendData = {
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      email: userData.email,
+      password: userData.password,
+      phone: userData.phone,
+      userType: userData.role, // Map role to userType
+      address: userData.address,
+      city: userData.city,
+      state: userData.state,
+      zipCode: userData.zipCode,
+    }
+
     return this.request<{
       success: boolean
       message: string
@@ -97,7 +117,7 @@ class ApiClient {
       user?: any
     }>("/auth/register", {
       method: "POST",
-      body: JSON.stringify(userData),
+      body: JSON.stringify(backendData),
     })
   }
 
@@ -116,6 +136,7 @@ class ApiClient {
       size?: string
       status?: string
       featured?: boolean
+      organizationId?: string
       sortBy?: string
       page?: number
       pageSize?: number
@@ -175,23 +196,16 @@ class ApiClient {
 
   // Rescue reports endpoints
   async createRescueReport(reportData: any, photos?: File[]) {
-    // Convert camelCase to PascalCase for backend compatibility
+    // Convert frontend field names to backend field names (camelCase)
     const backendData = {
-      AnimalType: reportData.animalType,
-      Breed: reportData.breed,
-      Size: reportData.size,
-      Color: reportData.color,
-      Description: reportData.description,
-      Location: reportData.location,
-      Latitude: reportData.latitude,
-      Longitude: reportData.longitude,
-      UrgencyLevel: reportData.urgencyLevel,
-      AnimalCondition: reportData.animalCondition,
-      InjuredOrSick: reportData.injuredOrSick || false,
-      InjuryDescription: reportData.injuryDescription,
-      ReporterName: reportData.reporterName,
-      ReporterPhone: reportData.reporterPhone,
-      ReporterEmail: reportData.reporterEmail
+      animalType: reportData.animalType,
+      urgencyLevel: reportData.urgencyLevel || reportData.urgency,
+      animalCondition: reportData.animalCondition || reportData.condition,
+      locationAddress: reportData.locationAddress || reportData.location,
+      description: reportData.description,
+      contactName: reportData.contactName || reportData.reporterName,
+      contactPhone: reportData.contactPhone || reportData.reporterPhone,
+      contactEmail: reportData.contactEmail || reportData.reporterEmail,
     }
 
     // If no photos, use JSON endpoint
@@ -208,20 +222,16 @@ class ApiClient {
     // Use FormData for photo uploads
     const formData = new FormData()
 
-    // Add all report data fields to FormData (PascalCase)
+    // Add all report data fields to FormData (camelCase)
     Object.keys(backendData).forEach(key => {
       if (backendData[key] !== null && backendData[key] !== undefined) {
         let value = backendData[key]
-        // Ensure decimal values are formatted with dot as decimal separator
-        if (key === 'Latitude' || key === 'Longitude') {
-          value = Number(value).toFixed(8) // Use fixed precision and ensure dot separator
-        }
         formData.append(key, value.toString())
       }
     })
 
     // Add photos
-    photos.forEach((photo, index) => {
+    photos.forEach((photo) => {
       formData.append('photos', photo)
     })
 
@@ -273,7 +283,19 @@ class ApiClient {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        organizationId: "00000000-0000-0000-0000-000000000000" // Backend will use user's actual organization
+        organizationId: "00000000-0000-0000-0000-000000000000" // Backend will auto-assign based on user's organization
+      }),
+    })
+  }
+
+  async updateRescueReportStatus(reportId: string, status: string) {
+    return this.request<any>(`/RescueReports/${reportId}/status`, {
+      method: "PUT",
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        status: status
       }),
     })
   }
@@ -283,6 +305,11 @@ class ApiClient {
     lastName: string
     email: string
     phone?: string
+    address?: string
+    city?: string
+    state?: string
+    zipCode?: string
+    profileImageUrl?: string
   }) {
     return this.request<any>("/auth/profile", {
       method: "PUT",
@@ -291,6 +318,59 @@ class ApiClient {
       },
       body: JSON.stringify(profileData),
     })
+  }
+
+  // User Photos endpoints
+  async getUserPhotos(userId?: string) {
+    const params = userId ? `?userId=${userId}` : ''
+    return this.request<any>(`/userphotos${params}`)
+  }
+
+  async createUserPhoto(data: { photoUrl: string; caption?: string; isPrimary?: boolean }) {
+    return this.request<any>('/userphotos', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateUserPhoto(id: string, data: { caption?: string; isPrimary?: boolean }) {
+    return this.request<any>(`/userphotos/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteUserPhoto(id: string) {
+    return this.request<any>(`/userphotos/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Favorites endpoints
+  async getFavorites() {
+    return this.request<any>('/favorites')
+  }
+
+  async addToFavorites(animalId: string) {
+    return this.request<any>(`/favorites/${animalId}`, {
+      method: 'POST',
+    })
+  }
+
+  async removeFromFavorites(animalId: string) {
+    return this.request<any>(`/favorites/${animalId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async checkFavoriteStatus(animalId: string) {
+    return this.request<any>(`/favorites/check/${animalId}`)
   }
 
   // Adoption applications endpoints
@@ -328,7 +408,7 @@ class ApiClient {
   }
 
   // Image endpoints
-  async uploadTemporaryPhoto(file: File) {
+  async uploadProfileImage(file: File) {
     const formData = new FormData()
     formData.append("file", file)
 
@@ -338,7 +418,7 @@ class ApiClient {
     }
 
     try {
-      const response = await fetch(`${this.baseURL}/images/upload/temporary`, {
+      const response = await fetch(`${this.baseURL}/images/upload/profile`, {
         method: "POST",
         headers,
         body: formData,
@@ -360,20 +440,85 @@ class ApiClient {
     }
   }
 
-  async getTemporaryImages(sessionId: string) {
-    return this.request<any[]>(`/images/temporary/${sessionId}`)
+  async uploadUserPhoto(file: File, caption?: string, isPrimary?: boolean) {
+    const formData = new FormData()
+    formData.append("file", file)
+    if (caption) formData.append("caption", caption)
+    if (isPrimary !== undefined) formData.append("isPrimary", isPrimary.toString())
+
+    const headers: HeadersInit = {}
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`
+    }
+
+    try {
+      const response = await fetch(`${this.baseURL}/images/upload/user-photo`, {
+        method: "POST",
+        headers,
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        return {
+          error: errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+        }
+      }
+
+      const data = await response.json()
+      return { data }
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : "Upload failed",
+      }
+    }
   }
 
-  async moveTemporaryPhotosToRescue(rescueId: number, tempPhotoIds: number[]) {
-    return this.request<any[]>(`/images/rescues/${rescueId}/photos/from-temporary`, {
+  async uploadAnimalPhoto(file: File, animalId: string, caption?: string, isPrimary?: boolean, displayOrder?: number) {
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("animalId", animalId)
+    if (caption) formData.append("caption", caption)
+    if (isPrimary !== undefined) formData.append("isPrimary", isPrimary.toString())
+    if (displayOrder !== undefined) formData.append("displayOrder", displayOrder.toString())
+
+    const headers: HeadersInit = {}
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`
+    }
+
+    try {
+      const response = await fetch(`${this.baseURL}/images/upload/animal-photo`, {
+        method: "POST",
+        headers,
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        return {
+          error: errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+        }
+      }
+
+      const data = await response.json()
+      return { data }
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : "Upload failed",
+      }
+    }
+  }
+
+  // Organization registration (public endpoint)
+  async registerOrganization(organizationData: any) {
+    return this.request<{
+      success: boolean
+      message: string
+      data?: any
+    }>("/organizations/register", {
       method: "POST",
-      body: JSON.stringify({ tempPhotoIds }),
-    })
-  }
-
-  async deleteTemporaryPhoto(photoId: string) {
-    return this.request<any>(`/images/temporary/${photoId}`, {
-      method: "DELETE",
+      body: JSON.stringify(organizationData),
     })
   }
 }

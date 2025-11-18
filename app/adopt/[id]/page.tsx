@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,53 +9,70 @@ import { Heart, ArrowLeft, MapPin, Calendar, Phone, Mail, Share2, Star, CheckCir
 import Link from "next/link"
 import Image from "next/image"
 import { useParams } from "next/navigation"
+import { apiClient } from "@/lib/api"
 
-// Mock pet data - in real app this would come from API
-const mockPet = {
-  id: "1",
-  name: "Luna",
-  type: "Dog",
-  breed: "Golden Retriever Mix",
-  age: "2 years",
-  gender: "Female",
-  size: "Large",
-  weight: "55 lbs",
-  location: "Happy Paws Shelter, Downtown",
-  distance: "2.3 miles",
-  description:
-    "Luna is a gentle, loving dog who gets along great with children and other pets. She was rescued from the streets and has made remarkable progress in her training. Luna loves long walks, playing fetch, and cuddling on the couch. She would thrive in a home with a yard where she can run and play.",
-  photos: ["/golden-retriever-dog-playing.jpg", "/golden-retriever-dog-sitting.jpg", "/golden-retriever-dog-with-toy.jpg"],
-  vaccinated: true,
-  spayed: true,
-  microchipped: true,
-  goodWithKids: true,
-  goodWithPets: true,
-  goodWithCats: false,
-  energyLevel: "Medium",
-  adoptionFee: 150,
-  featured: true,
-  rescueDate: "2024-01-15",
-  healthStatus: "Excellent",
-  specialNeeds: false,
-  houseTrained: true,
-  personality: ["Friendly", "Gentle", "Playful", "Loyal"],
-  medicalHistory: "Fully vaccinated, spayed, microchipped. No known health issues.",
-  shelterInfo: {
-    name: "Happy Paws Shelter",
-    phone: "(555) 123-4567",
-    email: "adopt@happypaws.org",
-    address: "123 Main St, Downtown",
-    hours: "Mon-Sat 10am-6pm, Sun 12pm-5pm",
-  },
-}
+
 
 export default function PetDetailPage() {
   const params = useParams()
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
   const [showApplicationForm, setShowApplicationForm] = useState(false)
+  const [pet, setPet] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // In real app, fetch pet data based on params.id
-  const pet = mockPet
+  useEffect(() => {
+    const fetchPet = async () => {
+      try {
+        setLoading(true)
+        const response = await apiClient.getAnimal(params.id as string)
+
+        if (response.error) {
+          setError(response.error)
+        } else {
+          setPet(response.data)
+        }
+      } catch (err) {
+        console.error('Error fetching pet:', err)
+        setError('Failed to load pet details')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (params.id) {
+      fetchPet()
+    }
+  }, [params.id])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading pet details...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !pet) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Pet Not Found</h2>
+          <p className="text-muted-foreground mb-4">{error || 'The pet you are looking for could not be found.'}</p>
+          <Link href="/adopt">
+            <Button>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Adoption
+            </Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -88,12 +105,12 @@ export default function PetDetailPage() {
             <Card className="overflow-hidden">
               <div className="aspect-[4/3] relative">
                 <Image
-                  src={pet.photos[currentPhotoIndex] || "/placeholder.svg"}
+                  src={pet.animalPhotos?.[currentPhotoIndex]?.photoUrl || "/a-cute-pet.png"}
                   alt={`${pet.name} photo ${currentPhotoIndex + 1}`}
                   fill
                   className="object-cover"
                 />
-                {pet.featured && (
+                {pet.isFeatured && (
                   <div className="absolute top-4 left-4">
                     <Badge className="bg-yellow-500 text-yellow-900">
                       <Star className="w-3 h-3 mr-1" />
@@ -102,23 +119,23 @@ export default function PetDetailPage() {
                   </div>
                 )}
                 <div className="absolute top-4 right-4">
-                  <Badge variant={pet.healthStatus === "Excellent" ? "default" : "secondary"}>{pet.healthStatus}</Badge>
+                  <Badge variant="default">Available</Badge>
                 </div>
               </div>
 
-              {pet.photos.length > 1 && (
+              {pet.animalPhotos && pet.animalPhotos.length > 1 && (
                 <div className="p-4">
                   <div className="flex gap-2 overflow-x-auto">
-                    {pet.photos.map((photo, index) => (
+                    {pet.animalPhotos.map((photo: any, index: number) => (
                       <button
-                        key={index}
+                        key={photo.id}
                         onClick={() => setCurrentPhotoIndex(index)}
                         className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
                           currentPhotoIndex === index ? "border-primary" : "border-transparent"
                         }`}
                       >
                         <Image
-                          src={photo || "/placeholder.svg"}
+                          src={photo.photoUrl || "/a-cute-pet.png"}
                           alt={`${pet.name} thumbnail ${index + 1}`}
                           width={80}
                           height={80}
@@ -136,13 +153,13 @@ export default function PetDetailPage() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="text-3xl">{pet.name}</CardTitle>
+                    <CardTitle className="text-3xl">{pet.name || 'Unnamed Pet'}</CardTitle>
                     <CardDescription className="text-lg">
-                      {pet.breed} • {pet.age} • {pet.gender}
+                      {pet.breed} • {pet.ageCategory || `${pet.estimatedAge} years`} • {pet.gender}
                     </CardDescription>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-primary">${pet.adoptionFee}</div>
+                    <div className="text-2xl font-bold text-primary">${pet.adoptionFee || 'Contact for info'}</div>
                     <div className="text-sm text-muted-foreground">Adoption Fee</div>
                   </div>
                 </div>
@@ -164,45 +181,45 @@ export default function PetDetailPage() {
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Size:</span>
-                            <span>{pet.size}</span>
+                            <span>{pet.size || 'Not specified'}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Weight:</span>
-                            <span>{pet.weight}</span>
+                            <span>{pet.weight ? `${pet.weight} lbs` : 'Not specified'}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Energy Level:</span>
-                            <span>{pet.energyLevel}</span>
+                            <span className="text-muted-foreground">Color:</span>
+                            <span>{pet.color || 'Not specified'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Species:</span>
+                            <span>{pet.species}</span>
                           </div>
                         </div>
                       </div>
 
                       <div>
-                        <h4 className="font-semibold mb-2">Compatibility</h4>
+                        <h4 className="font-semibold mb-2">Health Status</h4>
                         <div className="space-y-2 text-sm">
                           <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Good with Kids:</span>
-                            {pet.goodWithKids ? (
+                            <span className="text-muted-foreground">Spayed/Neutered:</span>
+                            {pet.isSpayedNeutered ? (
                               <CheckCircle className="w-4 h-4 text-green-500" />
                             ) : (
                               <AlertCircle className="w-4 h-4 text-red-500" />
                             )}
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Good with Dogs:</span>
-                            {pet.goodWithPets ? (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <AlertCircle className="w-4 h-4 text-red-500" />
-                            )}
+                            <span className="text-muted-foreground">Vaccination Status:</span>
+                            <span>{pet.vaccinationStatus || 'Unknown'}</span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Good with Cats:</span>
-                            {pet.goodWithCats ? (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <AlertCircle className="w-4 h-4 text-red-500" />
-                            )}
+                            <span className="text-muted-foreground">Microchip:</span>
+                            <span>{pet.microchipId ? 'Yes' : 'No'}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Special Needs:</span>
+                            <span>{pet.specialNeeds || 'None'}</span>
                           </div>
                         </div>
                       </div>
@@ -213,32 +230,19 @@ export default function PetDetailPage() {
                     <div>
                       <h4 className="font-semibold mb-3">Personality Traits</h4>
                       <div className="flex flex-wrap gap-2">
-                        {pet.personality.map((trait) => (
-                          <Badge key={trait} variant="secondary">
-                            {trait}
-                          </Badge>
-                        ))}
+                        {pet.personalityTraits && pet.personalityTraits.length > 0 ? (
+                          pet.personalityTraits.map((trait: string) => (
+                            <Badge key={trait} variant="secondary">
+                              {trait}
+                            </Badge>
+                          ))
+                        ) : (
+                          <p className="text-muted-foreground">No personality traits listed</p>
+                        )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">House Trained:</span>
-                        {pet.houseTrained ? (
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <AlertCircle className="w-4 h-4 text-red-500" />
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Special Needs:</span>
-                        {pet.specialNeeds ? (
-                          <AlertCircle className="w-4 h-4 text-yellow-500" />
-                        ) : (
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                        )}
-                      </div>
-                    </div>
+
                   </TabsContent>
 
                   <TabsContent value="medical" className="space-y-4">
@@ -246,16 +250,12 @@ export default function PetDetailPage() {
                       <h4 className="font-semibold mb-3">Medical Status</h4>
                       <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                         <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Vaccinated:</span>
-                          {pet.vaccinated ? (
-                            <CheckCircle className="w-4 h-4 text-green-500" />
-                          ) : (
-                            <AlertCircle className="w-4 h-4 text-red-500" />
-                          )}
+                          <span className="text-muted-foreground">Vaccination Status:</span>
+                          <span>{pet.vaccinationStatus || 'Unknown'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-muted-foreground">Spayed/Neutered:</span>
-                          {pet.spayed ? (
+                          {pet.isSpayedNeutered ? (
                             <CheckCircle className="w-4 h-4 text-green-500" />
                           ) : (
                             <AlertCircle className="w-4 h-4 text-red-500" />
@@ -263,14 +263,31 @@ export default function PetDetailPage() {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-muted-foreground">Microchipped:</span>
-                          {pet.microchipped ? (
+                          {pet.microchipId ? (
                             <CheckCircle className="w-4 h-4 text-green-500" />
                           ) : (
                             <AlertCircle className="w-4 h-4 text-red-500" />
                           )}
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">{pet.medicalHistory}</p>
+                      {pet.medicalConditions && pet.medicalConditions.length > 0 && (
+                        <div className="mb-4">
+                          <h5 className="font-medium mb-2">Medical Conditions</h5>
+                          <div className="flex flex-wrap gap-2">
+                            {pet.medicalConditions.map((condition: string) => (
+                              <Badge key={condition} variant="outline">
+                                {condition}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {pet.specialNeeds && (
+                        <div>
+                          <h5 className="font-medium mb-2">Special Needs</h5>
+                          <p className="text-sm text-muted-foreground">{pet.specialNeeds}</p>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                 </Tabs>
@@ -317,56 +334,31 @@ export default function PetDetailPage() {
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="font-medium">{pet.shelterInfo.name}</p>
-                    <p className="text-sm text-muted-foreground">{pet.shelterInfo.address}</p>
-                    <p className="text-sm text-muted-foreground">{pet.distance} away</p>
+                    <p className="font-medium">{pet.organization?.name || 'Unknown Organization'}</p>
+                    <p className="text-sm text-muted-foreground">{pet.organization?.address || 'Address not available'}</p>
+                    {pet.organization?.phone && (
+                      <p className="text-sm text-muted-foreground">{pet.organization.phone}</p>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <Calendar className="w-5 h-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="font-medium">Rescue Date</p>
-                    <p className="text-sm text-muted-foreground">{new Date(pet.rescueDate).toLocaleDateString()}</p>
+                    <p className="font-medium">Added to System</p>
+                    <p className="text-sm text-muted-foreground">{new Date(pet.createdAt).toLocaleDateString()}</p>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t">
-                  <h4 className="font-semibold mb-2">Shelter Hours</h4>
-                  <p className="text-sm text-muted-foreground">{pet.shelterInfo.hours}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Similar Pets */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Similar Pets</CardTitle>
-                <CardDescription>You might also like these pets</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
-                      <div className="w-12 h-12 bg-muted rounded-lg overflow-hidden">
-                        <Image
-                          src={`/happy-dog-owner.png?height=48&width=48&query=pet ${i}`}
-                          alt={`Similar pet ${i}`}
-                          width={48}
-                          height={48}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">Pet Name {i}</p>
-                        <p className="text-xs text-muted-foreground">Breed • Age</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Button variant="outline" className="w-full mt-4 bg-transparent">
-                  View All Similar Pets
-                </Button>
+                {pet.organization?.email && (
+                  <div className="pt-4 border-t">
+                    <h4 className="font-semibold mb-2">Contact Information</h4>
+                    <p className="text-sm text-muted-foreground">Email: {pet.organization.email}</p>
+                    {pet.organization.website && (
+                      <p className="text-sm text-muted-foreground">Website: {pet.organization.website}</p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

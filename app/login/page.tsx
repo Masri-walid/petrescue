@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Heart, Mail, Lock } from "lucide-react"
 import Link from "next/link"
 
@@ -17,6 +18,7 @@ export default function LoginPage() {
   const { login } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [rememberMe, setRememberMe] = useState(false)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -29,7 +31,7 @@ export default function LoginPage() {
     try {
       console.log("Login attempt:", { email, password })
 
-      const result = await login(email, password)
+      const result = await login(email, password, rememberMe)
 
       if (result.success) {
         console.log("Login successful")
@@ -111,6 +113,16 @@ export default function LoginPage() {
               </div>
 
               <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="remember-me"
+                    checked={rememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  />
+                  <Label htmlFor="remember-me" className="text-sm font-normal">
+                    Remember me
+                  </Label>
+                </div>
                 <Link href="/forgot-password" className="text-sm text-primary hover:underline">
                   Forgot password?
                 </Link>

@@ -13,22 +13,28 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { 
-  User, 
-  Settings, 
-  FileText, 
-  LogOut, 
+import {
+  User,
+  Settings,
+  FileText,
+  LogOut,
   Shield,
   Building,
   Stethoscope
 } from 'lucide-react'
+import { getProfileImageUrl, getUserInitials, getUserDisplayName } from '@/lib/profile-image-utils'
 
 export function UserProfileMenu() {
-  const { user, logout } = useAuth()
+  const { user, logout, profileVersion } = useAuth()
   const router = useRouter()
 
   // Debug logging
   console.log('UserProfileMenu - user data:', user)
+
+  const rawProfileImageUrl = getProfileImageUrl(user?.profileImageUrl)
+  const profileAvatarSrc = rawProfileImageUrl
+    ? `${rawProfileImageUrl}${rawProfileImageUrl.includes('?') ? '&' : '?'}pv=${profileVersion}`
+    : undefined
 
   if (!user) {
     console.log('UserProfileMenu - no user data')
@@ -48,7 +54,8 @@ export function UserProfileMenu() {
     router.push('/profile/reports')
   }
 
-  const getRoleIcon = (role: string) => {
+  const getRoleIcon = (role: string | undefined) => {
+    if (!role) return <User className="w-4 h-4" />
     switch (role.toLowerCase()) {
       case 'shelter':
         return <Building className="w-4 h-4" />
@@ -61,7 +68,8 @@ export function UserProfileMenu() {
     }
   }
 
-  const getRoleLabel = (role: string) => {
+  const getRoleLabel = (role: string | undefined) => {
+    if (!role) return 'Citizen'
     switch (role.toLowerCase()) {
       case 'shelter':
         return 'Shelter'
@@ -74,18 +82,16 @@ export function UserProfileMenu() {
     }
   }
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
-  }
+
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user.profileImageUrl} alt={`${user.firstName} ${user.lastName}`} />
+            <AvatarImage src={profileAvatarSrc} alt={getUserDisplayName(user.firstName, user.lastName)} />
             <AvatarFallback className="bg-primary text-primary-foreground">
-              {getInitials(user.firstName, user.lastName)}
+              {getUserInitials(user.firstName, user.lastName)}
             </AvatarFallback>
           </Avatar>
         </Button>

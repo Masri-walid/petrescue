@@ -60,11 +60,11 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
   }
 
   const handleViewAllReports = () => {
-    router.push('/reports/unhandled')
+    router.push('/notifications')
   }
 
   const handleReportClick = (reportId: string) => {
-    router.push(`/reports/unhandled#${reportId}`)
+    router.push(`/reports/${reportId}`)
   }
 
   const formatTimeAgo = (dateString: string) => {
@@ -134,14 +134,14 @@ export function NotificationBell({ className = "" }: NotificationBellProps) {
                         {report.animalType} {report.breed && `- ${report.breed}`}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {report.location}
+                        {report.locationAddress}
                       </p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <Badge 
-                      variant={report.urgencyLevel === 'critical' ? 'destructive' : 'secondary'}
-                      className="text-xs"
+                    <Badge
+                      variant={report.urgencyLevel === 'critical' || report.urgencyLevel === 'emergency' ? 'destructive' : 'secondary'}
+                      className={`text-xs ${(report.urgencyLevel === 'critical' || report.urgencyLevel === 'emergency') ? 'badge-emergency' : ''}`}
                     >
                       {report.urgencyLevel}
                     </Badge>

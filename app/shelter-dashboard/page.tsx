@@ -138,25 +138,49 @@ export default function ShelterDashboard() {
     }
   }
 
+  const handleStatusChange = async (reportId: string, newStatus: string) => {
+    try {
+      const response = await apiClient.updateRescueReportStatus(reportId, newStatus)
+      if (response.error) {
+        console.error('Error updating status:', response.error)
+      } else {
+        // Refresh the rescue reports
+        fetchRescueReports()
+      }
+    } catch (error) {
+      console.error('Error updating status:', error)
+    }
+  }
+
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Critical":
+    switch (status?.toLowerCase()) {
+      case "emergency":
+      case "critical":
+      case "high":
         return "destructive"
-      case "Urgent":
-        return "destructive"
-      case "Moderate":
+      case "urgent":
+      case "medium":
         return "secondary"
-      case "Available":
+      case "moderate":
+      case "low":
+        return "outline"
+      case "available":
         return "default"
-      case "Medical Care":
+      case "medical care":
         return "secondary"
-      case "Adoption Pending":
+      case "adoption pending":
         return "default"
-      case "Approved":
+      case "approved":
         return "default"
-      case "Under Review":
-      case "Pending":
+      case "under review":
+      case "pending":
         return "secondary"
+      case "assigned":
+        return "secondary"
+      case "in_progress":
+        return "default"
+      case "resolved":
+        return "outline"
       default:
         return "secondary"
     }
@@ -319,10 +343,10 @@ export default function ShelterDashboard() {
                       <div key={rescue.id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <Badge variant={getStatusColor(rescue.urgency) as any}>{rescue.urgency}</Badge>
+                            <Badge variant={getStatusColor(rescue.urgencyLevel) as any}>{rescue.urgencyLevel}</Badge>
                             <span className="text-sm font-medium">{rescue.animalType}</span>
                           </div>
-                          <p className="text-sm text-muted-foreground">{rescue.location}</p>
+                          <p className="text-sm text-muted-foreground">{rescue.locationAddress}</p>
                           <p className="text-xs text-muted-foreground">
                             Reported by {rescue.contactName} • {new Date(rescue.createdAt).toLocaleString()}
                           </p>
@@ -575,12 +599,12 @@ export default function ShelterDashboard() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-4 mb-2">
-                          <h3 className="text-lg font-semibold">Rescue #{rescue.id}</h3>
-                          <Badge variant={getStatusColor(rescue.urgency) as any}>{rescue.urgency}</Badge>
+                          <h3 className="text-lg font-semibold">Rescue #{rescue.id.substring(0, 8)}</h3>
+                          <Badge variant={getStatusColor(rescue.urgencyLevel) as any}>{rescue.urgencyLevel}</Badge>
                           <Badge variant="outline">{rescue.status}</Badge>
                         </div>
                         <p className="text-muted-foreground mb-2">
-                          <strong>{rescue.animalType}</strong> reported at {rescue.location}
+                          <strong>{rescue.animalType}</strong> reported at {rescue.locationAddress}
                         </p>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
@@ -593,7 +617,7 @@ export default function ShelterDashboard() {
                           </div>
                           <div className="flex items-center gap-1">
                             <MapPin className="w-4 h-4" />
-                            {rescue.location}
+                            {rescue.locationAddress}
                           </div>
                         </div>
                       </div>
@@ -606,7 +630,21 @@ export default function ShelterDashboard() {
                           <Phone className="w-4 h-4 mr-2" />
                           Contact Reporter
                         </Button>
-                        {rescue.status === "Pending" && <Button size="sm">Assign Team</Button>}
+                        {rescue.status === "pending" && (
+                          <Button size="sm" onClick={() => handleStatusChange(rescue.id, "assigned")}>
+                            Assign Team
+                          </Button>
+                        )}
+                        {rescue.status === "assigned" && (
+                          <Button size="sm" onClick={() => handleStatusChange(rescue.id, "in_progress")}>
+                            Start Rescue
+                          </Button>
+                        )}
+                        {rescue.status === "in_progress" && (
+                          <Button size="sm" onClick={() => handleStatusChange(rescue.id, "resolved")}>
+                            Mark Resolved
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>

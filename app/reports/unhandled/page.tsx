@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Heart, MapPin, Clock, Phone, Mail, AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react'
+import { Heart, MapPin, Clock, Phone, Mail, AlertTriangle, CheckCircle, ArrowLeft, Eye } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -78,14 +78,47 @@ export default function UnhandledReportsPage() {
   const fetchUnhandledReports = async () => {
     try {
       setLoading(true)
-      const response = await apiClient.getRescueReports({ 
-        status: 'reported' // Only get unhandled reports
-      })
-      
-      if (response.error) {
-        setError(response.error)
-      } else {
-        setReports(response.data || [])
+
+      // Get both unhandled reports and reports assigned to this user's organization
+      const [unhandledResponse, assignedResponse] = await Promise.all([
+        apiClient.getRescueReports({ status: 'reported' }), // Unhandled reports
+        user?.organizationId ? apiClient.getRescueReports({
+          organizationId: user.organizationId,
+          status: 'assigned'
+        }) : Promise.resolve({ data: [] })
+      ])
+
+      let allReports: any[] = []
+
+      // Process unhandled reports
+      if (unhandledResponse.data) {
+        if (Array.isArray(unhandledResponse.data)) {
+          allReports = [...unhandledResponse.data]
+        } else if (unhandledResponse.data.reports && Array.isArray(unhandledResponse.data.reports)) {
+          allReports = [...unhandledResponse.data.reports]
+        }
+      }
+
+      // Process assigned reports
+      if (assignedResponse.data) {
+        let assignedReports: any[] = []
+        if (Array.isArray(assignedResponse.data)) {
+          assignedReports = assignedResponse.data
+        } else if (assignedResponse.data.reports && Array.isArray(assignedResponse.data.reports)) {
+          assignedReports = assignedResponse.data.reports
+        }
+        allReports = [...allReports, ...assignedReports]
+      }
+
+      // Remove duplicates based on ID
+      const uniqueReports = allReports.filter((report, index, self) =>
+        index === self.findIndex(r => r.id === report.id)
+      )
+
+      setReports(uniqueReports)
+
+      if (unhandledResponse.error && assignedResponse.error) {
+        setError('Failed to load rescue reports')
       }
     } catch (err) {
       setError('Failed to load rescue reports')
@@ -98,9 +131,9 @@ export default function UnhandledReportsPage() {
   const handleClaimReport = async (reportId: string) => {
     try {
       setClaimingReports(prev => new Set(prev).add(reportId))
-      
+
       const response = await apiClient.claimRescueReport(reportId)
-      
+
       if (response.error) {
         setError(`Failed to claim report: ${response.error}`)
       } else {
@@ -121,9 +154,34 @@ export default function UnhandledReportsPage() {
     }
   }
 
+  const handleMarkAsDone = async (reportId: string) => {
+    try {
+      setClaimingReports(prev => new Set(prev).add(reportId))
+
+      const response = await apiClient.updateRescueReportStatus(reportId, 'resolved')
+
+      if (response.error) {
+        setError(`Failed to mark report as done: ${response.error}`)
+      } else {
+        // Remove the completed report from the list
+        setReports(prev => prev.filter(report => report.id !== reportId))
+        setError(null)
+      }
+    } catch (err) {
+      setError('Failed to update report status')
+      console.error('Error updating report status:', err)
+    } finally {
+      setClaimingReports(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(reportId)
+        return newSet
+      })
+    }
+  }
+
   const getUrgencyColor = (urgency: string) => {
     switch (urgency.toLowerCase()) {
-      case 'critical': return 'destructive'
+      case 'critical': return 'emergency'
       case 'urgent': return 'destructive'
       case 'moderate': return 'default'
       case 'low': return 'secondary'
@@ -191,7 +249,7 @@ export default function UnhandledReportsPage() {
         )}
 
         {/* Reports List */}
-        {reports.length === 0 ? (
+        {!Array.isArray(reports) || reports.length === 0 ? (
           <Card>
             <CardHeader className="text-center">
               <CardTitle>No Unhandled Reports</CardTitle>
@@ -206,7 +264,7 @@ export default function UnhandledReportsPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {reports.map((report) => (
+            {Array.isArray(reports) && reports.map((report) => (
               <Card key={report.id} className="overflow-hidden">
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -284,24 +342,70 @@ export default function UnhandledReportsPage() {
                     {new Date(report.createdAt).toLocaleTimeString()}
                   </div>
 
-                  {/* Action Button */}
-                  <Button 
-                    onClick={() => handleClaimReport(report.id)}
-                    disabled={claimingReports.has(report.id)}
-                    className="w-full"
-                  >
-                    {claimingReports.has(report.id) ? (
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    {report.status === 'reported' ? (
+                      <Button
+                        onClick={() => handleClaimReport(report.id)}
+                        disabled={claimingReports.has(report.id)}
+                        className="flex-1"
+                      >
+                        {claimingReports.has(report.id) ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Claiming...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Take Responsibility
+                          </>
+                        )}
+                      </Button>
+                    ) : report.status === 'assigned' ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Claiming...
+                        <Button
+                          onClick={() => handleMarkAsDone(report.id)}
+                          disabled={claimingReports.has(report.id)}
+                          className="flex-1"
+                          variant="default"
+                        >
+                          {claimingReports.has(report.id) ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Updating...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Mark as Done
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          asChild
+                          className="flex-1"
+                        >
+                          <Link href={`/reports/${report.id}`}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Details
+                          </Link>
+                        </Button>
                       </>
                     ) : (
-                      <>
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Take Responsibility
-                      </>
+                      <Button
+                        variant="outline"
+                        asChild
+                        className="w-full"
+                      >
+                        <Link href={`/reports/${report.id}`}>
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Details
+                        </Link>
+                      </Button>
                     )}
-                  </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}

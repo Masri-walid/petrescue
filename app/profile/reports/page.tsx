@@ -47,6 +47,7 @@ export default function MyReportsPage() {
   const [reports, setReports] = useState<RescueReport[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
 
   const getStatusInfo = (status: string) => {
     switch (status.toLowerCase()) {
@@ -95,6 +96,33 @@ export default function MyReportsPage() {
     }
   }
 
+  // Handle status updates for claimed reports
+  const handleStatusUpdate = async (reportId: string, newStatus: string) => {
+    try {
+      setUpdatingStatus(reportId)
+      const response = await apiClient.updateRescueReportStatus(reportId, newStatus)
+
+      if (response.error) {
+        setError(response.error)
+      } else {
+        // Update the report in the local state
+        setReports(prevReports =>
+          prevReports.map(report =>
+            report.id === reportId
+              ? { ...report, status: newStatus, updatedAt: new Date().toISOString() }
+              : report
+          )
+        )
+        setError('') // Clear any previous errors
+      }
+    } catch (err) {
+      console.error('Error updating status:', err)
+      setError('Failed to update status. Please try again.')
+    } finally {
+      setUpdatingStatus(null)
+    }
+  }
+
   // Redirect if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
@@ -110,12 +138,44 @@ export default function MyReportsPage() {
 
       try {
         setIsLoading(true)
-        const response = await apiClient.getUserRescueReports(user.id)
 
-        if (response.error) {
-          setError(response.error)
-        } else if (response.data) {
-          setReports(response.data)
+        // For veterinarians and shelters, get both submitted reports and assigned reports
+        if (user.role === 'veterinarian' || user.role === 'shelter') {
+          // Get all reports for this user (both submitted and assigned)
+          const response = await apiClient.getRescueReports({
+            pageSize: 100 // Get more reports to include both submitted and assigned
+          })
+
+          if (response.error) {
+            setError(response.error)
+          } else if (response.data?.reports) {
+            // Filter to show reports where user is either reporter or assigned organization member
+            const allReports = response.data.reports
+            console.log('All reports:', allReports.length)
+            console.log('User ID:', user.id)
+            console.log('User Organization ID:', user.organizationId)
+
+            const userReports = allReports.filter((report: any) => {
+              const isReporter = report.reporterId === user.id
+              const isAssignedToOrg = report.assignedOrganizationId && user.organizationId && report.assignedOrganizationId === user.organizationId
+
+              console.log(`Report ${report.id}: isReporter=${isReporter}, isAssignedToOrg=${isAssignedToOrg}, assignedOrgId=${report.assignedOrganizationId}`)
+
+              return isReporter || isAssignedToOrg
+            })
+
+            console.log('Filtered user reports:', userReports.length)
+            setReports(userReports)
+          }
+        } else {
+          // For regular users, only get their submitted reports
+          const response = await apiClient.getUserRescueReports(user.id)
+
+          if (response.error) {
+            setError(response.error)
+          } else if (response.data) {
+            setReports(response.data)
+          }
         }
       } catch (error) {
         console.error('Failed to fetch reports:', error)
@@ -130,8 +190,9 @@ export default function MyReportsPage() {
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency.toLowerCase()) {
+      case 'emergency':
       case 'critical':
-        return 'bg-red-100 text-red-800'
+        return 'bg-red-100 text-red-800 border border-red-300 font-semibold'
       case 'urgent':
         return 'bg-orange-100 text-orange-800'
       case 'moderate':
@@ -356,6 +417,43 @@ export default function MyReportsPage() {
                                   {new Date(report.updatedAt).toLocaleTimeString()}
                                 </p>
                               )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Status Update Actions for Claimed Reports */}
+                        {report.assignedOrganizationId === user.organizationId &&
+                         report.status !== 'resolved' &&
+                         (user.role === 'veterinarian' || user.role === 'shelter') && (
+                          <div className="pt-4 border-t">
+                            <div className="flex flex-wrap gap-2">
+                              {report.status === 'assigned' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleStatusUpdate(report.id, 'in_progress')}
+                                  disabled={updatingStatus === report.id}
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                  {updatingStatus === report.id ? 'Starting...' : 'Start Working'}
+                                </Button>
+                              )}
+                              {report.status === 'in_progress' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleStatusUpdate(report.id, 'resolved')}
+                                  disabled={updatingStatus === report.id}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  {updatingStatus === report.id ? 'Resolving...' : 'Mark Resolved'}
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => window.open(`/reports/${report.id}`, '_blank')}
+                              >
+                                View Details
+                              </Button>
                             </div>
                           </div>
                         )}

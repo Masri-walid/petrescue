@@ -212,32 +212,24 @@ export default function AddAnimalPage() {
         formDataToSend.append(`photos`, photo)
       })
 
-      // Choose endpoint based on whether photos are present
-      const endpoint = photos.length > 0 ? '/api/animals/with-photos' : '/api/animals'
-      const requestOptions = photos.length > 0
-        ? {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: formDataToSend
-          }
-        : {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(animalData)
-          }
+      // Use API client for submission
+      let response;
+      if (photos.length > 0) {
+        // Submit with photos using FormData
+        response = await apiClient.request('/animals/with-photos', {
+          method: 'POST',
+          body: formDataToSend
+        })
+      } else {
+        // Submit without photos using JSON
+        response = await apiClient.request('/animals', {
+          method: 'POST',
+          body: JSON.stringify(animalData)
+        })
+      }
 
-      // Submit to API
-      const response = await fetch(endpoint, requestOptions)
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        setError(result.message || 'Failed to add animal')
+      if (response.error) {
+        setError(response.error)
       } else {
         setSuccess('Animal added successfully!')
         // Clear form

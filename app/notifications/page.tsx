@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AlertCircle, MapPin, Phone, Mail, Calendar, Filter } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { NavigationHeader } from '@/components/navigation-header'
 
 interface RescueReport {
   id: string
@@ -27,6 +28,9 @@ interface RescueReport {
   reporterPhone: string
   reporterEmail?: string
   status: string
+  assignedOrganizationId?: string
+  assignedOrganizationName?: string
+  assignedOrganizationEmail?: string
   createdAt: string
   photos: Array<{
     id: string
@@ -83,7 +87,7 @@ export default function NotificationsPage() {
       })
       
       if (filters.status && filters.status !== 'all') params.append('status', filters.status)
-      if (filters.urgency && filters.urgency !== 'all') params.append('urgency', filters.urgency)
+      if (filters.urgency && filters.urgency !== 'all') params.append('urgencyLevel', filters.urgency)
       
       const response = await apiClient.request<ReportsResponse>(`/RescueReports?${params}`)
       
@@ -110,7 +114,8 @@ export default function NotificationsPage() {
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency.toLowerCase()) {
-      case 'critical': return 'bg-red-500'
+      case 'emergency':
+      case 'critical': return 'bg-red-600 border-red-700 shadow-lg'
       case 'high': return 'bg-orange-500'
       case 'moderate': return 'bg-yellow-500'
       case 'low': return 'bg-green-500'
@@ -123,7 +128,7 @@ export default function NotificationsPage() {
       case 'reported': return 'bg-blue-500'
       case 'assigned': return 'bg-purple-500'
       case 'in_progress': return 'bg-orange-500'
-      case 'resolved': return 'bg-green-500'
+      case 'rescued': return 'bg-green-500'
       case 'closed': return 'bg-gray-500'
       default: return 'bg-gray-500'
     }
@@ -159,15 +164,18 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Rescue Reports Dashboard
-        </h1>
-        <p className="text-gray-600">
-          View and manage rescue reports in your area
-        </p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <NavigationHeader />
+
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Rescue Reports Dashboard
+          </h1>
+          <p className="text-gray-600">
+            View and manage rescue reports in your area
+          </p>
+        </div>
 
       {/* Filters */}
       <Card className="mb-6">
@@ -352,7 +360,24 @@ export default function NotificationsPage() {
                         </div>
                       )}
                     </div>
-                    
+
+                    {report.assignedOrganizationName && (
+                      <div className="mt-4">
+                        <h4 className="font-medium mb-3">Assigned Organization</h4>
+                        <div className="space-y-2">
+                          <div className="text-sm">
+                            <span className="font-medium">Name:</span> {report.assignedOrganizationName}
+                          </div>
+                          {report.assignedOrganizationEmail && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Mail className="h-4 w-4" />
+                              {report.assignedOrganizationEmail}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {report.status === 'reported' && (
                       <Button
                         onClick={(e) => {
@@ -414,6 +439,7 @@ export default function NotificationsPage() {
           </Button>
         </div>
       )}
+      </div>
     </div>
   )
 }

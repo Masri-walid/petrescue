@@ -2,7 +2,8 @@
 
 import type React from "react"
 import { apiClient } from "@/lib/api"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,11 +11,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Heart, Camera, MapPin, Upload, AlertTriangle, Phone, Clock, ArrowLeft, X } from "lucide-react"
+import { Heart, Camera, MapPin, Upload, AlertTriangle, Phone, Clock, X } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { NavigationHeader } from "@/components/navigation-header"
 
 export default function RescuePage() {
+  const { user, isAuthenticated } = useAuth()
   const [formData, setFormData] = useState({
     animalType: "",
     urgency: "",
@@ -35,6 +38,18 @@ export default function RescuePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  // Auto-fill contact information if user is logged in
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      setFormData(prev => ({
+        ...prev,
+        contactName: prev.contactName || `${user.firstName} ${user.lastName}`,
+        contactPhone: prev.contactPhone || user.phone || "",
+        contactEmail: prev.contactEmail || user.email || "",
+      }))
+    }
+  }, [isAuthenticated, user])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -173,26 +188,7 @@ export default function RescuePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="flex items-center gap-2">
-                <ArrowLeft className="w-5 h-5" />
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <Heart className="w-5 h-5 text-primary-foreground" />
-                </div>
-                <span className="text-xl font-bold text-foreground">PetRescue Connect</span>
-              </Link>
-            </div>
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-destructive" />
-              <span className="text-sm font-medium">Emergency: 1-800-RESCUE</span>
-            </div>
-          </div>
-        </div>
-      </header>
+      <NavigationHeader />
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Hero Section */}
@@ -209,17 +205,17 @@ export default function RescuePage() {
         </div>
 
         {/* Emergency Notice */}
-        <Card className="mb-8 border-destructive/20 bg-destructive/5">
+        <Card className="mb-8 border-emergency bg-red-50">
           <CardContent className="p-6">
             <div className="flex items-start gap-4">
-              <AlertTriangle className="w-6 h-6 text-destructive flex-shrink-0 mt-1" />
+              <AlertTriangle className="w-6 h-6 text-emergency flex-shrink-0 mt-1" />
               <div>
-                <h3 className="font-semibold text-destructive mb-2">Emergency Situations</h3>
+                <h3 className="font-semibold text-emergency mb-2">Emergency Situations</h3>
                 <p className="text-sm text-muted-foreground mb-3">
                   If the animal is severely injured, trapped, or in immediate danger, please call our emergency hotline
                   first.
                 </p>
-                <Button variant="destructive" size="sm">
+                <Button className="btn-emergency" size="sm">
                   <Phone className="w-4 h-4 mr-2" />
                   Call 1-800-RESCUE
                 </Button>
@@ -268,7 +264,7 @@ export default function RescuePage() {
                           <SelectValue placeholder="Select urgency" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="critical">Critical - Severely injured</SelectItem>
+                          <SelectItem value="critical" className="text-emergency font-semibold">Critical - Severely injured</SelectItem>
                           <SelectItem value="urgent">Urgent - Injured or sick</SelectItem>
                           <SelectItem value="moderate">Moderate - Needs help</SelectItem>
                           <SelectItem value="low">Low - Healthy but stray</SelectItem>

@@ -7,7 +7,8 @@ import { apiClient } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, MapPin, Phone, Mail, Calendar, AlertTriangle, Clock, CheckCircle } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ArrowLeft, MapPin, Phone, Mail, Calendar, AlertTriangle, Clock, CheckCircle, Edit } from 'lucide-react'
 import Link from 'next/link'
 
 interface RescueReport {
@@ -17,26 +18,30 @@ interface RescueReport {
   size?: string
   color?: string
   description?: string
-  location: string
-  latitude?: number
-  longitude?: number
+  locationAddress: string
+  coordinates?: string
   urgencyLevel: string
   animalCondition: string
-  injuredOrSick: boolean
-  injuryDescription?: string
-  reporterName: string
-  reporterPhone: string
-  reporterEmail?: string
+  contactName: string
+  contactPhone: string
+  contactEmail: string
   status: string
   createdAt: string
   assignedOrganizationId?: string
-  assignedOrganizationName?: string
-  photos: Array<{
+  assignedOrganization?: {
+    id: string
+    name: string
+    email: string
+    phone: string
+    organizationType: string
+  }
+  rescueReportPhotos: Array<{
     id: string
     fileName: string
     contentType: string
     fileSize: number
-    photoUrl: string
+    photoUrl?: string
+    photoData?: string
   }>
 }
 
@@ -48,8 +53,17 @@ export default function ReportDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [claiming, setClaiming] = useState(false)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [showStatusUpdate, setShowStatusUpdate] = useState(false)
 
   const reportId = params.id as string
+
+  // Check if current user can update the status of this report
+  const canUpdateStatus = () => {
+    if (!user || !report) return false
+    if (user.role !== 'veterinarian' && user.role !== 'shelter') return false
+    return report.assignedOrganizationId === user.organizationId
+  }
 
   // Check if user has access to this page
   useEffect(() => {
@@ -114,12 +128,37 @@ export default function ReportDetailsPage() {
     }
   }
 
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (!report) return
+
+    try {
+      setUpdatingStatus(true)
+      const response = await apiClient.updateRescueReportStatus(report.id, newStatus)
+      if (response.error) {
+        setError(response.error)
+      } else {
+        // Refresh the report data
+        const updatedResponse = await apiClient.request<RescueReport>(`/RescueReports/${reportId}`)
+        if (updatedResponse.data) {
+          setReport(updatedResponse.data)
+          setShowStatusUpdate(false)
+        }
+      }
+    } catch (err) {
+      console.error('Error updating status:', err)
+      setError('Failed to update status. You may not have permission to update this report.')
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
+
   const getUrgencyBadge = (urgency: string) => {
     switch (urgency.toLowerCase()) {
+      case 'emergency':
       case 'critical':
-        return <Badge variant="destructive" className="flex items-center gap-1">
+        return <Badge variant="destructive" className="flex items-center gap-1 badge-emergency">
           <AlertTriangle className="h-3 w-3" />
-          Critical
+          {urgency.charAt(0).toUpperCase() + urgency.slice(1)}
         </Badge>
       case 'high':
         return <Badge variant="destructive" className="bg-orange-500">High</Badge>
@@ -143,10 +182,10 @@ export default function ReportDetailsPage() {
         return <Badge variant="default">Assigned</Badge>
       case 'in_progress':
         return <Badge variant="default" className="bg-blue-500">In Progress</Badge>
-      case 'resolved':
+      case 'rescued':
         return <Badge variant="default" className="bg-green-500 flex items-center gap-1">
           <CheckCircle className="h-3 w-3" />
-          Resolved
+          Rescued
         </Badge>
       case 'closed':
         return <Badge variant="outline">Closed</Badge>
@@ -281,7 +320,7 @@ export default function ReportDetailsPage() {
             
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <MapPin className="h-4 w-4" />
-              {report.location}
+              {report.locationAddress}
             </div>
             
             <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -299,32 +338,41 @@ export default function ReportDetailsPage() {
           <CardContent className="space-y-4">
             <div>
               <span className="font-medium">Name:</span>
-              <p className="text-gray-700">{report.reporterName}</p>
+              <p className="text-gray-700">{report.contactName}</p>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Phone className="h-4 w-4" />
               <span className="font-medium">Phone:</span>
-              <p className="text-gray-700">{report.reporterPhone}</p>
+              <p className="text-gray-700">{report.contactPhone}</p>
             </div>
-            
-            {report.reporterEmail && (
+
+            {report.contactEmail && (
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4" />
                 <span className="font-medium">Email:</span>
-                <p className="text-gray-700">{report.reporterEmail}</p>
+                <p className="text-gray-700">{report.contactEmail}</p>
               </div>
             )}
             
-            {report.assignedOrganizationName && (
+            {report.assignedOrganization && (
               <div>
                 <span className="font-medium">Assigned to:</span>
-                <p className="text-gray-700">{report.assignedOrganizationName}</p>
+                <p className="text-gray-700">{report.assignedOrganization.name}</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  📧 {report.assignedOrganization.email}
+                </p>
+                <p className="text-sm text-gray-600">
+                  📞 {report.assignedOrganization.phone}
+                </p>
+                <p className="text-sm text-gray-600">
+                  🏢 {report.assignedOrganization.organizationType}
+                </p>
               </div>
             )}
             
-            {report.status === 'reported' && (
-              <Button 
+            {report.status === 'reported' && user && (user.role === 'veterinarian' || user.role === 'shelter') && (
+              <Button
                 onClick={handleClaimReport}
                 disabled={claiming}
                 className="w-full mt-4"
@@ -332,26 +380,81 @@ export default function ReportDetailsPage() {
                 {claiming ? 'Claiming...' : 'Claim Report'}
               </Button>
             )}
+
+            {/* Status Update Section - Only for organizations that claimed the report */}
+            {canUpdateStatus() && report.status !== 'reported' && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">Update Status:</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowStatusUpdate(!showStatusUpdate)}
+                    disabled={updatingStatus}
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    {showStatusUpdate ? 'Cancel' : 'Change Status'}
+                  </Button>
+                </div>
+
+                {showStatusUpdate && (
+                  <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
+                    <Select onValueChange={handleStatusUpdate} disabled={updatingStatus}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select new status..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="assigned">Assigned</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="rescued">Rescued</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {updatingStatus && (
+                      <p className="text-sm text-gray-600">Updating status...</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Photos */}
-      {report.photos && report.photos.length > 0 && (
+      {report.rescueReportPhotos && report.rescueReportPhotos.length > 0 && (
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>Photos ({report.photos.length})</CardTitle>
+            <CardTitle>Photos ({report.rescueReportPhotos.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {report.photos.map((photo) => (
+              {report.rescueReportPhotos.map((photo) => (
                 <div key={photo.id} className="aspect-square bg-muted rounded-lg overflow-hidden">
-                  <img
-                    src={photo.photoUrl}
-                    alt={photo.fileName}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
-                    onClick={() => window.open(photo.photoUrl, '_blank')}
-                  />
+                  {photo.photoData ? (
+                    <img
+                      src={`data:${photo.contentType};base64,${photo.photoData}`}
+                      alt={photo.fileName || 'Rescue photo'}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                      onClick={() => {
+                        const newWindow = window.open();
+                        if (newWindow) {
+                          newWindow.document.write(`<img src="data:${photo.contentType};base64,${photo.photoData}" style="max-width:100%;height:auto;" />`);
+                        }
+                      }}
+                    />
+                  ) : photo.photoUrl ? (
+                    <img
+                      src={photo.photoUrl}
+                      alt={photo.fileName || 'Rescue photo'}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                      onClick={() => window.open(photo.photoUrl, '_blank')}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-gray-500">No image</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

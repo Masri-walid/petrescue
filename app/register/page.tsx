@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { apiClient } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -11,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Heart, Mail, Lock, User, Building, Stethoscope, Phone, MapPin } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
@@ -35,12 +34,100 @@ export default function RegisterPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const [isGettingLocation, setIsGettingLocation] = useState(false)
+  const [locationPermission, setLocationPermission] = useState<"granted" | "denied" | "prompt">("prompt")
+  const [coordinates, setCoordinates] = useState<{lat: number, lng: number} | null>(null)
+  const [organizations, setOrganizations] = useState<any[]>([])
+  const [selectedOrganization, setSelectedOrganization] = useState<string>("")
+  const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false)
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  const getCurrentLocation = async () => {
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported by this browser")
+      return
+    }
 
+    setIsGettingLocation(true)
+    setError("")
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+          }
+        )
+      })
+
+      const { latitude, longitude } = position.coords
+      setCoordinates({ lat: latitude, lng: longitude })
+      setLocationPermission("granted")
+
+      // Optionally, reverse geocode to fill address fields
+      try {
+        const response = await fetch(
+          `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=YOUR_API_KEY`
+        )
+        // Note: You'll need to add an API key for reverse geocoding
+        // For now, we'll just store the coordinates
+      } catch (geocodeError) {
+        console.log("Reverse geocoding failed, but coordinates captured")
+      }
+
+    } catch (error: any) {
+      console.error("Error getting location:", error)
+      setLocationPermission("denied")
+      if (error.code === 1) {
+        setError("Location access denied. Please enable location services and try again.")
+      } else if (error.code === 2) {
+        setError("Location unavailable. Please check your connection and try again.")
+      } else if (error.code === 3) {
+        setError("Location request timed out. Please try again.")
+      } else {
+        setError("Unable to get your location. Please enter your address manually.")
+      }
+    } finally {
+      setIsGettingLocation(false)
+    }
+  }
+
+  const fetchOrganizations = async (organizationType: string) => {
+    setIsLoadingOrganizations(true)
+    try {
+      const response = await apiClient.request(`/organizations?organizationType=${organizationType}`)
+      if (response.error) {
+        console.error("Error fetching organizations:", response.error)
+        setOrganizations([])
+      } else {
+        setOrganizations(response.data || [])
+      }
+    } catch (error) {
+      console.error("Error fetching organizations:", error)
+      setOrganizations([])
+    } finally {
+      setIsLoadingOrganizations(false)
+    }
+  }
+
+  // Fetch organizations when user type changes to veterinarian or shelter
+  useEffect(() => {
+    if (userType === "veterinarian") {
+      fetchOrganizations("veterinary_clinic")
+    } else if (userType === "shelter") {
+      fetchOrganizations("shelter")
+    } else {
+      setOrganizations([])
+      setSelectedOrganization("")
+    }
+  }, [userType])
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,9 +155,23 @@ export default function RegisterPage() {
         setIsSubmitting(false)
         return
       }
+
+      // Validate organization selection
+      if (!selectedOrganization) {
+        setError("Please select an organization. If no organizations are available, please contact an administrator or register your organization separately.")
+        setIsSubmitting(false)
+        return
+      }
     }
 
     try {
+      // Handle organization registration differently
+      if (userType === "organization") {
+        // Redirect directly to organization registration page
+        router.push("/register/organization")
+        return
+      }
+
       const registrationData = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
@@ -84,6 +185,8 @@ export default function RegisterPage() {
           city: formData.city.trim() || undefined,
           state: formData.state.trim() || undefined,
           zipCode: formData.zipCode.trim() || undefined,
+          coordinates: coordinates ? `POINT(${coordinates.lng} ${coordinates.lat})` : undefined,
+          organizationId: selectedOrganization || undefined,
         }),
       }
 
@@ -145,7 +248,7 @@ export default function RegisterPage() {
             <div className="mb-6">
               <Label className="text-base font-medium mb-4 block">Account Type</Label>
               <Tabs value={userType} onValueChange={setUserType} className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="citizen" className="flex items-center gap-2">
                     <User className="w-4 h-4" />
                     <span className="hidden sm:inline">Citizen</span>
@@ -158,14 +261,90 @@ export default function RegisterPage() {
                     <Building className="w-4 h-4" />
                     <span className="hidden sm:inline">Shelter</span>
                   </TabsTrigger>
+                  <TabsTrigger value="organization" className="flex items-center gap-2">
+                    <Building className="w-4 h-4" />
+                    <span className="hidden sm:inline">Organization</span>
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
               <p className="text-sm text-muted-foreground mt-2">
                 {userType === "citizen" && "Report stray animals and browse adoptable pets"}
                 {userType === "veterinarian" && "Provide medical care and health certifications"}
                 {userType === "shelter" && "Manage rescue operations and animal adoptions"}
+                {userType === "organization" && "Register a new organization (shelter, rescue, veterinary clinic, etc.)"}
               </p>
             </div>
+
+            {/* Organization Selection - Only for Veterinarian and Shelter */}
+            {(userType === "veterinarian" || userType === "shelter") && (
+              <div className="mb-6">
+                <Label className="text-base font-medium mb-4 block">
+                  Organization Selection
+                </Label>
+                <div className="space-y-4">
+                  {isLoadingOrganizations ? (
+                    <div className="flex items-center gap-2 p-4 border rounded-lg">
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm text-muted-foreground">Loading organizations...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="organization">Select Organization</Label>
+                        <Select value={selectedOrganization} onValueChange={setSelectedOrganization}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose an existing organization or create new" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {organizations.map((org) => (
+                              <SelectItem key={org.id} value={org.id}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{org.name}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {org.city}, {org.state}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+
+                    </>
+                  )}
+
+                  {/* Help message for organization registration */}
+                  <div className="mt-4 p-3 bg-muted/50 border rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      Don't see your organization? You can{" "}
+                      <Link href="/register/organization" className="text-primary hover:underline font-medium">
+                        register a new organization here
+                      </Link>{" "}
+                      and then return to complete your account registration.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Organization Registration Info */}
+            {userType === "organization" && (
+              <div className="mb-6">
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Building className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-blue-900 dark:text-blue-100">Organization Registration</h4>
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                        Click "Register Organization" below to proceed directly to the organization registration form where you can create a new shelter, rescue, veterinary clinic, or sanctuary.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleRegister} className="space-y-6">
               {/* Error Display */}
               {error && (
@@ -241,11 +420,46 @@ export default function RegisterPage() {
               {/* Location Fields - Only for Veterinarian and Shelter */}
               {userType !== "citizen" && (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <MapPin className="w-4 h-4 text-primary" />
-                    <Label className="text-base font-medium">Location Information</Label>
-                    <span className="text-sm text-muted-foreground">(Required for {userType}s)</span>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      <Label className="text-base font-medium">Location Information</Label>
+                      <span className="text-sm text-muted-foreground">(Required for {userType}s)</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={getCurrentLocation}
+                      disabled={isGettingLocation}
+                      className="flex items-center gap-2"
+                    >
+                      {isGettingLocation ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          Getting Location...
+                        </>
+                      ) : (
+                        <>
+                          <MapPin className="w-4 h-4" />
+                          Use Current Location
+                        </>
+                      )}
+                    </Button>
                   </div>
+
+                  {/* Location status indicator */}
+                  {coordinates && (
+                    <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-sm font-medium">Location captured successfully</span>
+                      </div>
+                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                        Coordinates: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Manual address input fields */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -335,7 +549,7 @@ export default function RegisterPage() {
               </div>
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Creating Account..." : "Create Account"}
+                {isSubmitting ? "Redirecting..." : userType === "organization" ? "Register Organization" : "Create Account"}
               </Button>
             </form>
 

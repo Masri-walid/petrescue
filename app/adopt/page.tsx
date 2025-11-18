@@ -1,30 +1,56 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Heart, Search, Filter, MapPin, Calendar, ArrowLeft, Star } from "lucide-react"
+import { Heart, Search, Filter, MapPin, Calendar, Star } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { apiClient } from "@/lib/api"
+import { NavigationHeader } from "@/components/navigation-header"
 
 export default function AdoptPage() {
+  const { user, isAuthenticated } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState({
     type: "All Types",
     age: "All Ages",
     size: "All Sizes",
     location: "",
+    favorites: false,
   })
   const [showFilters, setShowFilters] = useState(false)
   const [animals, setAnimals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [favoriteAnimals, setFavoriteAnimals] = useState<Set<string>>(new Set())
+  const [favoritesList, setFavoritesList] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
   const [totalCount, setTotalCount] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
+
+  // Fetch user favorites
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (!isAuthenticated || !user) return
+
+      try {
+        const response = await apiClient.getFavorites()
+        if (response.data) {
+          setFavoritesList(response.data)
+          const favoriteIds = new Set(response.data.map((animal: any) => animal.id))
+          setFavoriteAnimals(favoriteIds)
+        }
+      } catch (error) {
+        console.error('Error fetching favorites:', error)
+      }
+    }
+
+    fetchFavorites()
+  }, [isAuthenticated, user])
 
   useEffect(() => {
     fetchAnimals()
@@ -33,6 +59,33 @@ export default function AdoptPage() {
   const fetchAnimals = async () => {
     setLoading(true)
     setError(null)
+
+    // If favorites filter is active, use favorites list
+    if (filters.favorites) {
+      let filteredFavorites = favoritesList
+
+      // Apply other filters to favorites
+      if (searchTerm) {
+        filteredFavorites = filteredFavorites.filter(animal =>
+          animal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          animal.breed.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      }
+      if (filters.type !== "All Types") {
+        filteredFavorites = filteredFavorites.filter(animal => animal.species === filters.type)
+      }
+      if (filters.age !== "All Ages") {
+        filteredFavorites = filteredFavorites.filter(animal => animal.age === filters.age)
+      }
+      if (filters.size !== "All Sizes") {
+        filteredFavorites = filteredFavorites.filter(animal => animal.size === filters.size)
+      }
+
+      setAnimals(filteredFavorites)
+      setTotalCount(filteredFavorites.length)
+      setLoading(false)
+      return
+    }
 
     const response = await apiClient.getAnimals({
       search: searchTerm || undefined,
@@ -48,17 +101,46 @@ export default function AdoptPage() {
     if (response.error) {
       setError(response.error)
     } else if (response.data) {
-      setAnimals(response.data.animals)
-      setTotalCount(response.data.totalCount)
+      setAnimals(response.data.animals || [])
+      setTotalCount(response.data.totalCount || 0)
     }
 
     setLoading(false)
   }
 
-  const featuredAnimals = animals.filter((animal) => animal.featured)
-  const regularAnimals = animals.filter((animal) => !animal.featured)
+  const toggleFavorite = async (animalId: string) => {
+    if (!isAuthenticated || !user) return
 
-  if (loading && animals.length === 0) {
+    try {
+      const isFavorited = favoriteAnimals.has(animalId)
+
+      if (isFavorited) {
+        await apiClient.removeFromFavorites(animalId)
+        setFavoriteAnimals(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(animalId)
+          return newSet
+        })
+        setFavoritesList(prev => prev.filter(animal => animal.id !== animalId))
+      } else {
+        await apiClient.addToFavorites(animalId)
+        setFavoriteAnimals(prev => new Set(prev).add(animalId))
+
+        // Find the animal and add to favorites list
+        const animal = animals.find(a => a.id === animalId)
+        if (animal) {
+          setFavoritesList(prev => [...prev, animal])
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+    }
+  }
+
+  const featuredAnimals = animals?.filter((animal) => animal.featured) || []
+  const regularAnimals = animals?.filter((animal) => !animal.featured) || []
+
+  if (loading && (!animals || animals.length === 0)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -82,28 +164,7 @@ export default function AdoptPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <ArrowLeft className="w-5 h-5" />
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Heart className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold text-foreground">PetRescue Connect</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-6">
-              <Link href="/rescue" className="text-muted-foreground hover:text-foreground transition-colors">
-                Report Rescue
-              </Link>
-              <Link href="/shelters" className="text-muted-foreground hover:text-foreground transition-colors">
-                Shelters
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <NavigationHeader />
 
       <div className="container mx-auto px-4 py-8">
         {/* Hero Section */}
@@ -130,6 +191,16 @@ export default function AdoptPage() {
                 className="pl-10"
               />
             </div>
+            {isAuthenticated && (
+              <Button
+                variant={filters.favorites ? "default" : "outline"}
+                onClick={() => setFilters(prev => ({ ...prev, favorites: !prev.favorites }))}
+                className="flex items-center gap-2"
+              >
+                <Heart className={`w-4 h-4 ${filters.favorites ? 'fill-current' : ''}`} />
+                Favorites {favoritesList.length > 0 && `(${favoritesList.length})`}
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() => setShowFilters(!showFilters)}
@@ -213,7 +284,7 @@ export default function AdoptPage() {
         {/* Results Summary */}
         <div className="mb-6">
           <p className="text-muted-foreground">
-            Showing {animals.length} of {totalCount} available pets
+            Showing {animals?.length || 0} of {totalCount} available pets
             {searchTerm && ` matching "${searchTerm}"`}
           </p>
         </div>
@@ -227,7 +298,14 @@ export default function AdoptPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {featuredAnimals.map((animal) => (
-                <PetCard key={animal.id} pet={animal} featured />
+                <PetCard
+                  key={animal.id}
+                  pet={animal}
+                  featured
+                  isFavorited={favoriteAnimals.has(animal.id)}
+                  onToggleFavorite={toggleFavorite}
+                  isAuthenticated={isAuthenticated}
+                />
               ))}
             </div>
           </div>
@@ -238,7 +316,13 @@ export default function AdoptPage() {
           <h2 className="text-2xl font-bold mb-4">Available for Adoption</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {regularAnimals.map((animal) => (
-              <PetCard key={animal.id} pet={animal} />
+              <PetCard
+                key={animal.id}
+                pet={animal}
+                isFavorited={favoriteAnimals.has(animal.id)}
+                onToggleFavorite={toggleFavorite}
+                isAuthenticated={isAuthenticated}
+              />
             ))}
           </div>
         </div>
@@ -254,7 +338,7 @@ export default function AdoptPage() {
               variant="outline"
               onClick={() => {
                 setSearchTerm("")
-                setFilters({ type: "All Types", age: "All Ages", size: "All Sizes", location: "" })
+                setFilters({ type: "All Types", age: "All Ages", size: "All Sizes", location: "", favorites: false })
               }}
             >
               Clear All Filters
@@ -266,8 +350,21 @@ export default function AdoptPage() {
   )
 }
 
-function PetCard({ pet, featured = false }: { pet: any; featured?: boolean }) {
-  const primaryPhoto = pet.photos?.find((p: any) => p.isPrimary) || pet.photos?.[0]
+function PetCard({
+  pet,
+  featured = false,
+  isFavorited = false,
+  onToggleFavorite,
+  isAuthenticated = false
+}: {
+  pet: any;
+  featured?: boolean;
+  isFavorited?: boolean;
+  onToggleFavorite?: (id: string) => void;
+  isAuthenticated?: boolean;
+}) {
+  // Look for primary photo in animalPhotos array, fallback to first photo
+  const primaryPhoto = pet.animalPhotos?.find((p: any) => p.isPrimary) || pet.animalPhotos?.[0]
 
   return (
     <Card className={`overflow-hidden hover:shadow-lg transition-shadow ${featured ? "ring-2 ring-yellow-200" : ""}`}>
@@ -282,12 +379,27 @@ function PetCard({ pet, featured = false }: { pet: any; featured?: boolean }) {
 
       <div className="aspect-[4/3] relative overflow-hidden">
         <Image
-          src={primaryPhoto?.filePath ? `/api${primaryPhoto.filePath}` : "/a-cute-pet.png"}
+          src={primaryPhoto?.photoUrl || "/a-cute-pet.png"}
           alt={pet.name}
           fill
           className="object-cover hover:scale-105 transition-transform duration-300"
         />
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-2 right-2 flex gap-2">
+          {isAuthenticated && onToggleFavorite && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 w-8 p-0 bg-white/80 hover:bg-white"
+              onClick={(e) => {
+                e.preventDefault()
+                onToggleFavorite(pet.id)
+              }}
+            >
+              <Heart
+                className={`h-4 w-4 ${isFavorited ? 'fill-red-500 text-red-500' : 'text-gray-600'}`}
+              />
+            </Button>
+          )}
           <Badge variant={pet.healthStatus === "Excellent" ? "default" : "secondary"}>{pet.healthStatus}</Badge>
         </div>
       </div>
@@ -309,7 +421,7 @@ function PetCard({ pet, featured = false }: { pet: any; featured?: boolean }) {
 
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="w-4 h-4" />
-          <span>{pet.organizationName}</span>
+          <span>{pet.organization?.name || 'Unknown Organization'}</span>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -350,9 +462,6 @@ function PetCard({ pet, featured = false }: { pet: any; featured?: boolean }) {
         <div className="flex gap-2 pt-2">
           <Button asChild className="flex-1">
             <Link href={`/adopt/${pet.id}`}>View Details</Link>
-          </Button>
-          <Button variant="outline" size="icon" className="bg-transparent">
-            <Heart className="w-4 h-4" />
           </Button>
         </div>
       </CardContent>

@@ -17,13 +17,18 @@ interface User {
   profileImageUrl?: string
   isActive: boolean
   isVerified: boolean
+  organizationId?: string
+  organizationName?: string
+  organizationRole?: string
 }
 
 interface AuthContextType {
   user: User | null
   isLoading: boolean
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  /** increments whenever we successfully refresh the user profile */
+  profileVersion: number
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   refreshUser: () => Promise<void>
 }
@@ -33,13 +38,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [profileVersion, setProfileVersion] = useState(0)
 
   const isAuthenticated = !!user
 
   // Check for existing token on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('auth_token')
+      // Check both localStorage and sessionStorage for token
+      let token = localStorage.getItem('auth_token')
+      if (!token) {
+        token = sessionStorage.getItem('auth_token')
+      }
+
       if (token) {
         apiClient.setToken(token)
         await refreshUser()
@@ -50,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth()
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
       const response = await apiClient.login(email, password)
 
@@ -59,8 +70,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (response.data?.success && response.data?.token && response.data?.user) {
+        // Store token based on remember me preference
+        if (rememberMe) {
+          localStorage.setItem('auth_token', response.data.token)
+          sessionStorage.removeItem('auth_token') // Clear session storage
+        } else {
+          sessionStorage.setItem('auth_token', response.data.token)
+          localStorage.removeItem('auth_token') // Clear local storage
+        }
+
+        // Set token for subsequent requests
         apiClient.setToken(response.data.token)
-        setUser(response.data.user)
+
+        // Always load the full, up-to-date user profile from /auth/profile
+        // so avatar/profile image and organization info are consistent
+        await refreshUser()
+
         return { success: true }
       }
 
@@ -75,8 +100,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logout = () => {
+    // Clear tokens from both storages
+    localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('auth_token')
     apiClient.clearToken()
     setUser(null)
+    setProfileVersion(0)
   }
 
   const refreshUser = async () => {
@@ -84,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await apiClient.getProfile()
       if (response.data) {
         setUser(response.data)
+        setProfileVersion((prev) => prev + 1)
       } else {
         // Token might be invalid
         logout()
@@ -98,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     isLoading,
     isAuthenticated,
+    profileVersion,
     login,
     logout,
     refreshUser,
