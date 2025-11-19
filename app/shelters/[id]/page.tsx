@@ -1,27 +1,30 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { apiClient } from '@/lib/api'
 import { NavigationHeader } from '@/components/navigation-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Globe, 
-  Clock, 
+import {
+  ArrowLeft,
+  MapPin,
+  Phone,
+  Mail,
+  Globe,
+  Clock,
   PawPrint,
   Star,
   Users,
   Heart,
-  Shield
+  Shield,
+  Camera,
 } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
+import { getProfileImageUrl } from '@/lib/profile-image-utils'
 
 interface Organization {
   id: string
@@ -56,17 +59,29 @@ interface Organization {
 export default function OrganizationDetailsPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isUser = searchParams.get('user') === 'true'
+
   const [organization, setOrganization] = useState<Organization | null>(null)
+  const [user, setUser] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userPhotos, setUserPhotos] = useState<any[]>([])
+  const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null)
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false)
 
   const organizationId = params.id as string
 
   useEffect(() => {
-    if (organizationId) {
+    if (!organizationId) return
+
+    if (isUser) {
+      fetchUser()
+    } else {
       fetchOrganization()
+      fetchOrganizationPhotos()
     }
-  }, [organizationId])
+  }, [organizationId, isUser])
 
   const fetchOrganization = async () => {
     try {
@@ -74,7 +89,7 @@ export default function OrganizationDetailsPage() {
       setError(null)
 
       const response = await apiClient.request(`/organizations/${organizationId}`)
-      
+
       if (response.error) {
         setError(response.error)
       } else if (response.data) {
@@ -87,6 +102,51 @@ export default function OrganizationDetailsPage() {
       setError('Failed to load organization details')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchUser = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      // Use the public users-by-type endpoint (which also returns photos)
+      // and then find the specific user by id
+      const response = await apiClient.request('/auth/users/by-type', {
+        method: 'GET',
+      })
+
+      if (response.error) {
+        setError(response.error)
+      } else if (response.data) {
+        const users = response.data as any[]
+        const foundUser = users.find((u) => u.id === organizationId)
+
+        if (foundUser) {
+          setUser(foundUser)
+          setUserPhotos(foundUser.userPhotos || [])
+        } else {
+          setError('User not found')
+        }
+      } else {
+        setError('User not found')
+      }
+    } catch (err) {
+      console.error('Error fetching user:', err)
+      setError('Failed to load provider details')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchOrganizationPhotos = async () => {
+    try {
+      const response = await apiClient.getUserPhotos(organizationId)
+      if (response.data) {
+        setUserPhotos(response.data)
+      }
+    } catch (err) {
+      console.error('Error fetching organization photos:', err)
     }
   }
 
@@ -111,6 +171,8 @@ export default function OrganizationDetailsPage() {
   }
 
   if (loading) {
+    const loadingText = isUser ? 'Loading provider details...' : 'Loading organization details...'
+
     return (
       <>
         <NavigationHeader />
@@ -118,7 +180,7 @@ export default function OrganizationDetailsPage() {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading organization details...</p>
+              <p className="text-muted-foreground">{loadingText}</p>
             </div>
           </div>
         </div>
@@ -126,14 +188,17 @@ export default function OrganizationDetailsPage() {
     )
   }
 
-  if (error || !organization) {
+  if (error || (!isUser && !organization) || (isUser && !user)) {
+    const notFoundTitle = isUser ? 'Provider Not Found' : 'Organization Not Found'
+    const notFoundMessage = error || `The requested ${isUser ? 'provider' : 'organization'} could not be found.`
+
     return (
       <>
         <NavigationHeader />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Organization Not Found</h1>
-            <p className="text-muted-foreground mb-4">{error || 'The requested organization could not be found.'}</p>
+            <h1 className="text-2xl font-bold mb-4">{notFoundTitle}</h1>
+            <p className="text-muted-foreground mb-4">{notFoundMessage}</p>
             <Button onClick={() => router.back()}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Go Back
@@ -143,6 +208,224 @@ export default function OrganizationDetailsPage() {
       </>
     )
   }
+
+  // If this is a vet/shelter user, render their details instead of organization details
+  if (isUser && user) {
+    const fullName = `${user.firstName} ${user.lastName}`
+    const typeLabel = user.userType === 'veterinarian' ? 'Veterinarian' : 'Shelter Provider'
+
+    return (
+      <>
+        <NavigationHeader />
+        <div className="min-h-screen bg-background">
+          <div className="container mx-auto px-4 py-8">
+            {/* Back Button */}
+            <div className="mb-6">
+              <Button variant="ghost" onClick={() => router.back()}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Shelters
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Main Content */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Provider Header */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 bg-primary/10 rounded-lg">
+                          {user.userType === 'veterinarian' ? (
+                            <Shield className="w-5 h-5" />
+                          ) : (
+                            <Heart className="w-5 h-5" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <CardTitle className="text-2xl">{fullName}</CardTitle>
+                            {user.isVerified && (
+                              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                <Shield className="w-3 h-3 mr-1" />
+                                Verified
+                              </Badge>
+                            )}
+                          </div>
+                          <CardDescription className="text-lg">{typeLabel}</CardDescription>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+
+                {/* Photo Gallery */}
+                {userPhotos && userPhotos.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Camera className="w-5 h-5" />
+                        Photo Gallery
+                      </CardTitle>
+                      <CardDescription>Photos shared by this provider</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {userPhotos.map((photo) => (
+                          <div
+                            key={photo.id}
+                            className="relative aspect-square rounded-lg overflow-hidden bg-muted cursor-pointer"
+                            onClick={() => {
+                              setSelectedPhoto(photo)
+                              setIsPhotoModalOpen(true)
+                            }}
+                          >
+                            <img
+                              src={getProfileImageUrl(photo.photoUrl) || photo.photoUrl}
+                              alt={photo.caption || 'Provider photo'}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                            />
+                            {photo.caption && (
+                              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1">
+                                {photo.caption}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Sidebar */}
+              <div className="space-y-6">
+                {/* Contact Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Contact Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {user.address && (
+                      <div className="flex items-start gap-3">
+                        <MapPin className="w-5 h-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <p className="font-medium">Address</p>
+                          <p className="text-sm text-muted-foreground">
+                            {user.address}
+                            <br />
+                            {user.city}, {user.state} {user.zipCode}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {user.phone && (
+                      <>
+                        <Separator />
+                        <div className="flex items-center gap-3">
+                          <Phone className="w-5 h-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Phone</p>
+                            <a
+                              href={`tel:${user.phone}`}
+                              className="text-sm text-primary hover:underline"
+                            >
+                              {user.phone}
+                            </a>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {user.email && (
+                      <>
+                        <Separator />
+                        <div className="flex items-center gap-3">
+                          <Mail className="w-5 h-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Email</p>
+                            <a
+                              href={`mailto:${user.email}`}
+                              className="text-sm text-primary hover:underline"
+                            >
+                              {user.email}
+                            </a>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  <Button className="w-full" size="lg">
+                    <Heart className="w-4 h-4 mr-2" />
+                    View Available Animals
+                  </Button>
+                  <Button variant="outline" className="w-full" size="lg">
+                    <Phone className="w-4 h-4 mr-2" />
+                    Call Now
+                  </Button>
+
+        {isPhotoModalOpen && selectedPhoto && (
+          <div
+            className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center"
+            onClick={() => {
+              setIsPhotoModalOpen(false)
+              setSelectedPhoto(null)
+            }}
+          >
+            <div
+              className="bg-background max-w-5xl w-full mx-4 max-h-[90vh] rounded-lg overflow-hidden shadow-xl flex flex-col md:flex-row"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative flex-1 bg-black">
+                <img
+                  src={getProfileImageUrl(selectedPhoto.photoUrl) || selectedPhoto.photoUrl}
+                  alt={selectedPhoto.caption || 'Photo'}
+                  className="w-full h-full object-contain bg-black"
+                />
+              </div>
+              <div className="w-full md:w-80 p-4 flex flex-col gap-4">
+                <div className="flex justify-between items-start">
+                  <h3 className="font-semibold text-lg">Photo details</h3>
+                  <button
+                    type="button"
+                    className="text-sm text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      setIsPhotoModalOpen(false)
+                      setSelectedPhoto(null)
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+                {selectedPhoto.caption && (
+                  <p className="text-sm text-muted-foreground whitespace-pre-line">
+                    {selectedPhoto.caption}
+                  </p>
+                )}
+                {selectedPhoto.createdAt && (
+                  <p className="text-xs text-muted-foreground mt-auto">
+                    Shared on {new Date(selectedPhoto.createdAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
 
   return (
     <>
@@ -188,8 +471,8 @@ export default function OrganizationDetailsPage() {
                                 <Star
                                   key={i}
                                   className={`w-4 h-4 ${
-                                    i < Math.floor(organization.rating!) 
-                                      ? 'text-yellow-400 fill-current' 
+                                    i < Math.floor(organization.rating!)
+                                      ? 'text-yellow-400 fill-current'
                                       : 'text-gray-300'
                                   }`}
                                 />
@@ -210,6 +493,44 @@ export default function OrganizationDetailsPage() {
                   </CardContent>
                 )}
               </Card>
+
+              {/* Photo Gallery */}
+              {userPhotos && userPhotos.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Camera className="w-5 h-5" />
+                      Photo Gallery
+                    </CardTitle>
+                    <CardDescription>Photos shared by this organization</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {userPhotos.map((photo) => (
+                        <div
+                          key={photo.id}
+                          className="relative aspect-square rounded-lg overflow-hidden bg-muted cursor-pointer"
+                          onClick={() => {
+                            setSelectedPhoto(photo)
+                            setIsPhotoModalOpen(true)
+                          }}
+                        >
+                          <img
+                            src={getProfileImageUrl(photo.photoUrl) || photo.photoUrl}
+                            alt={photo.caption || 'Organization photo'}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          />
+                          {photo.caption && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1">
+                              {photo.caption}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Services */}
               {organization.organizationServices && organization.organizationServices.length > 0 && (
@@ -388,6 +709,55 @@ export default function OrganizationDetailsPage() {
             </div>
           </div>
         </div>
+
+      {isPhotoModalOpen && selectedPhoto && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center"
+          onClick={() => {
+            setIsPhotoModalOpen(false)
+            setSelectedPhoto(null)
+          }}
+        >
+          <div
+            className="bg-background max-w-5xl w-full mx-4 max-h-[90vh] rounded-lg overflow-hidden shadow-xl flex flex-col md:flex-row"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative flex-1 bg-black">
+              <img
+                src={getProfileImageUrl(selectedPhoto.photoUrl) || selectedPhoto.photoUrl}
+                alt={selectedPhoto.caption || 'Photo'}
+                className="w-full h-full object-contain bg-black"
+              />
+            </div>
+            <div className="w-full md:w-80 p-4 flex flex-col gap-4">
+              <div className="flex justify-between items-start">
+                <h3 className="font-semibold text-lg">Photo details</h3>
+                <button
+                  type="button"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setIsPhotoModalOpen(false)
+                    setSelectedPhoto(null)
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+              {selectedPhoto.caption && (
+                <p className="text-sm text-muted-foreground whitespace-pre-line">
+                  {selectedPhoto.caption}
+                </p>
+              )}
+              {selectedPhoto.createdAt && (
+                <p className="text-xs text-muted-foreground mt-auto">
+                  Shared on {new Date(selectedPhoto.createdAt).toLocaleString()}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       </div>
     </>
   )

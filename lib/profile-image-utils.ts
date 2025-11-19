@@ -15,7 +15,12 @@ const BACKEND_URL = RAW_API_URL.replace(/\/api\/?$/, '')
 export function getProfileImageUrl(profileImageUrl?: string | null): string | undefined {
   if (!profileImageUrl) return undefined
 
-  // If it's already a full URL (external image), return as is
+  // If it's a data URL (e.g. "data:image/png;base64,..."), return as-is
+  if (profileImageUrl.startsWith('data:')) {
+    return profileImageUrl
+  }
+
+  // If it's already a full URL (external image or direct backend URL), return as is
   if (profileImageUrl.startsWith('http://') || profileImageUrl.startsWith('https://')) {
     return profileImageUrl
   }
@@ -30,7 +35,7 @@ export function getProfileImageUrl(profileImageUrl?: string | null): string | un
     return `${BACKEND_URL}${profileImageUrl}`
   }
 
-  // If it doesn't start with / or http, assume it's a relative path and prepend backend URL
+  // If it doesn't start with / or http/data, assume it's a relative path and prepend backend URL
   return `${BACKEND_URL}/${profileImageUrl}`
 }
 

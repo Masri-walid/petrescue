@@ -9,7 +9,6 @@ namespace PetRescueConnect.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly IUserRepository _userRepository;
@@ -22,6 +21,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers([FromQuery] string? userType = null)
         {
             try
@@ -47,6 +47,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<ActionResult<UserDto>> GetUser(Guid id)
         {
             try
@@ -67,6 +68,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpGet("{id}/with-organizations")]
+        [AllowAnonymous]
         public async Task<ActionResult<UserDto>> GetUserWithOrganizations(Guid id)
         {
             try
@@ -87,6 +89,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<ActionResult<UserDto>> UpdateUser(Guid id, [FromBody] UpdateUserDto updateUserDto)
         {
             try
@@ -111,6 +114,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<ActionResult> DeleteUser(Guid id)
         {
             try

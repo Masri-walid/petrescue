@@ -40,51 +40,112 @@ namespace PetRescueConnect.API.Controllers
         {
             try
             {
-                // Get user role from JWT token
-                var userRole = User.FindFirst("user_type")?.Value;
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                // Base query including related data needed by the dashboard
+                var query = _context.RescueReports
+                    .Include(r => r.RescueReportPhotos)
+                    .Include(r => r.AssignedOrganization)
+                    .Include(r => r.Reporter)
+                    .AsQueryable();
 
-                IEnumerable<RescueReport> reports;
-
-                // All authenticated users can see all reports
-                // (Role-based permissions for actions like claiming/updating are handled elsewhere)
-                reports = await _rescueReportRepository.GetAllAsync();
-
-                // Apply additional filters
+                // Apply filters
                 if (!string.IsNullOrEmpty(status))
                 {
-                    reports = reports.Where(r => r.Status == status);
+                    query = query.Where(r => r.Status == status);
                 }
+
                 if (!string.IsNullOrEmpty(urgencyLevel))
                 {
-                    reports = reports.Where(r => r.UrgencyLevel == urgencyLevel);
+                    query = query.Where(r => r.UrgencyLevel == urgencyLevel);
                 }
+
                 if (organizationId.HasValue)
                 {
-                    reports = reports.Where(r => r.AssignedOrganizationId == organizationId);
+                    query = query.Where(r => r.AssignedOrganizationId == organizationId);
                 }
+
                 if (reporterId.HasValue)
                 {
-                    reports = reports.Where(r => r.ReporterId == reporterId);
+                    query = query.Where(r => r.ReporterId == reporterId);
                 }
 
                 // Apply sorting
-                reports = sortBy?.ToLower() switch
+                query = sortBy?.ToLower() switch
                 {
-                    "createdat" => reports.OrderByDescending(r => r.CreatedAt),
-                    "urgency" => reports.OrderByDescending(r => r.UrgencyLevel),
-                    "status" => reports.OrderBy(r => r.Status),
-                    _ => reports.OrderByDescending(r => r.CreatedAt)
+                    "createdat" => query.OrderByDescending(r => r.CreatedAt),
+                    "urgency" => query.OrderByDescending(r => r.UrgencyLevel),
+                    "status" => query.OrderBy(r => r.Status),
+                    _ => query.OrderByDescending(r => r.CreatedAt)
                 };
 
-                // Apply pagination
-                var totalCount = reports.Count();
+                // Pagination
+                var totalCount = await query.CountAsync();
                 var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
-                var paginatedReports = reports.Skip((page - 1) * pageSize).Take(pageSize);
 
-                var reportDtos = _mapper.Map<IEnumerable<RescueReportDto>>(paginatedReports);
+                var paginatedReports = await query
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
 
-                return Ok(new {
+                // Map to DTOs and convert photo binaries to base64 so the frontend can display them
+                var reportDtos = new List<RescueReportDto>();
+
+                foreach (var report in paginatedReports)
+                {
+                    var dto = _mapper.Map<RescueReportDto>(report);
+
+                    // Ensure we only attach photos that belong to this report (safety check)
+                    if (report.RescueReportPhotos != null && report.RescueReportPhotos.Any())
+                    {
+                        var matchingPhotos = report.RescueReportPhotos
+                            .Where(p => p.RescueReportId == report.Id)
+                            .ToList();
+
+                        dto.RescueReportPhotos = new List<RescueReportPhotoDto>();
+
+                        foreach (var photo in matchingPhotos)
+                        {
+                            var photoDto = new RescueReportPhotoDto
+                            {
+                                Id = photo.Id,
+                                RescueReportId = photo.RescueReportId,
+                                PhotoUrl = photo.PhotoUrl,
+                                ContentType = photo.ContentType,
+                                FileName = photo.FileName,
+                                FileSize = photo.FileSize,
+                                Caption = photo.Caption,
+                                CreatedAt = photo.CreatedAt
+                            };
+
+                            if (photo.PhotoData != null && photo.PhotoData.Length > 0)
+                            {
+                                photoDto.PhotoData = Convert.ToBase64String(photo.PhotoData);
+                            }
+                            else if (!string.IsNullOrEmpty(photo.PhotoUrl))
+                            {
+                                photoDto.PhotoData = null; // Will use PhotoUrl instead
+                            }
+
+                            dto.RescueReportPhotos.Add(photoDto);
+                        }
+                    }
+
+                    // Ensure the assigned organization on the DTO matches the FK
+                    if (report.AssignedOrganizationId.HasValue &&
+                        report.AssignedOrganization != null &&
+                        report.AssignedOrganization.Id == report.AssignedOrganizationId.Value)
+                    {
+                        dto.AssignedOrganization = _mapper.Map<OrganizationDto>(report.AssignedOrganization);
+                    }
+                    else
+                    {
+                        dto.AssignedOrganization = null;
+                    }
+
+                    reportDtos.Add(dto);
+                }
+
+                return Ok(new
+                {
                     reports = reportDtos,
                     totalCount = totalCount,
                     page = page,
@@ -121,9 +182,13 @@ namespace PetRescueConnect.API.Controllers
                 // Convert photo data to base64 for frontend display and ensure all photos are included
                 if (report.RescueReportPhotos != null && report.RescueReportPhotos.Any())
                 {
+                    var matchingPhotos = report.RescueReportPhotos
+                        .Where(p => p.RescueReportId == report.Id)
+                        .ToList();
+
                     reportDto.RescueReportPhotos = new List<RescueReportPhotoDto>();
 
-                    foreach (var photo in report.RescueReportPhotos)
+                    foreach (var photo in matchingPhotos)
                     {
                         var photoDto = new RescueReportPhotoDto
                         {
@@ -149,6 +214,18 @@ namespace PetRescueConnect.API.Controllers
 
                         reportDto.RescueReportPhotos.Add(photoDto);
                     }
+                }
+
+                // Ensure the assigned organization on the DTO matches the FK
+                if (report.AssignedOrganizationId.HasValue &&
+                    report.AssignedOrganization != null &&
+                    report.AssignedOrganization.Id == report.AssignedOrganizationId.Value)
+                {
+                    reportDto.AssignedOrganization = _mapper.Map<OrganizationDto>(report.AssignedOrganization);
+                }
+                else
+                {
+                    reportDto.AssignedOrganization = null;
                 }
 
                 return Ok(reportDto);

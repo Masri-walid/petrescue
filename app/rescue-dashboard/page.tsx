@@ -353,12 +353,14 @@ export default function RescueDashboard() {
                               </div>
 
                               {/* Assigned Organization */}
-                              {report.assignedOrganization && (
-                                <div className="space-y-2">
-                                  <h4 className="font-semibold text-sm flex items-center gap-2">
-                                    <Building className="w-4 h-4" />
-                                    Assigned Organization
-                                  </h4>
+                              <div className="space-y-2">
+                                <h4 className="font-semibold text-sm flex items-center gap-2">
+                                  <Building className="w-4 h-4" />
+                                  Assigned Organization
+                                </h4>
+                                {report.assignedOrganization &&
+                                 report.assignedOrganizationId &&
+                                 report.assignedOrganization.id === report.assignedOrganizationId ? (
                                   <div className="bg-muted/50 p-4 rounded-lg">
                                     <div className="space-y-2">
                                       <p className="font-medium">{report.assignedOrganization.name}</p>
@@ -382,13 +384,17 @@ export default function RescueDashboard() {
                                       )}
                                     </div>
                                   </div>
-                                </div>
-                              )}
+                                ) : (
+                                  <p className="text-sm text-muted-foreground italic">
+                                    Unassigned
+                                  </p>
+                                )}
+                              </div>
 
                               {/* Photos */}
-                              {report.rescueReportPhotos && report.rescueReportPhotos.length > 0 && (
-                                <div className="space-y-2">
-                                  <h4 className="font-semibold text-sm">Photos</h4>
+                              <div className="space-y-2">
+                                <h4 className="font-semibold text-sm">Photos</h4>
+                                {report.rescueReportPhotos && report.rescueReportPhotos.length > 0 ? (
                                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                     {report.rescueReportPhotos.map((photo: any) => (
                                       <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden bg-muted">
@@ -401,7 +407,7 @@ export default function RescueDashboard() {
                                               // Open image in a modal or new tab
                                               const newWindow = window.open()
                                               if (newWindow) {
-                                                newWindow.document.write(`<img src="data:${photo.contentType};base64,${photo.photoData}" style="max-width:100%;max-height:100%;" />`)
+                                                newWindow.document.write(`<img src=\"data:${photo.contentType};base64,${photo.photoData}\" style=\"max-width:100%;max-height:100%;\" />`)
                                               }
                                             }}
                                           />
@@ -425,8 +431,12 @@ export default function RescueDashboard() {
                                       </div>
                                     ))}
                                   </div>
-                                </div>
-                              )}
+                                ) : (
+                                  <p className="text-sm text-muted-foreground italic">
+                                    No photos attached yet
+                                  </p>
+                                )}
+                              </div>
 
                               {/* Additional Notes */}
                               {report.notes && (

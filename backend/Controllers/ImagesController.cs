@@ -176,6 +176,9 @@ namespace PetRescueConnect.API.Controllers
                     CreatedAt = DateTime.UtcNow
                 };
 
+                // Ensure photo_url (NOT NULL in DB) is populated
+                userPhoto.PhotoUrl = $"/api/images/user-photo/{userPhoto.Id}";
+
                 _context.UserPhotos.Add(userPhoto);
                 await _context.SaveChangesAsync();
 

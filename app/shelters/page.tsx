@@ -47,7 +47,7 @@ export default function SheltersPage() {
       })
 
       // Fetch users who are vets or shelters
-      const usersResponse = await apiClient.request('/users/by-type', {
+      const usersResponse = await apiClient.request('/auth/users/by-type', {
         method: 'GET',
       })
 
@@ -96,9 +96,9 @@ export default function SheltersPage() {
 
   // Convert users to organization-like format for display
   const userOrganizations = users.map((user) => {
-    // Get the primary photo or first photo if available
+    // Use the user's profile picture if available, otherwise fall back to their primary or first gallery photo
     const primaryPhoto = user.userPhotos?.find((photo: any) => photo.isPrimary) || user.userPhotos?.[0]
-    const photoUrl = getProfileImageUrl(primaryPhoto?.photoUrl || user.profileImageUrl)
+    const photoUrl = getProfileImageUrl(user.profileImageUrl || primaryPhoto?.photoUrl)
 
     return {
       id: user.id,
@@ -141,7 +141,7 @@ export default function SheltersPage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-500 mb-4">Error loading organizations: {error}</p>
-          <Button onClick={fetchOrganizations}>Try Again</Button>
+          <Button onClick={fetchData}>Try Again</Button>
         </div>
       </div>
     )
@@ -238,6 +238,8 @@ export default function SheltersPage() {
 }
 
 function ShelterCard({ shelter, featured = false }: { shelter: any; featured?: boolean }) {
+  const imageUrl = shelter.profileImageUrl || "/animal-shelter-exterior.jpg"
+
   const isOpen = () => {
     if (!shelter.hours || typeof shelter.hours !== "object") return false
 
@@ -272,7 +274,7 @@ function ShelterCard({ shelter, featured = false }: { shelter: any; featured?: b
 
       <div className="aspect-[3/2] relative overflow-hidden">
         <Image
-          src="/animal-shelter-exterior.jpg"
+          src={imageUrl}
           alt={shelter.name}
           fill
           className="object-cover hover:scale-105 transition-transform duration-300"
@@ -337,7 +339,9 @@ function ShelterCard({ shelter, featured = false }: { shelter: any; featured?: b
 
         <div className="flex gap-2 pt-2">
           <Button asChild className="flex-1">
-            <Link href={`/shelters/${shelter.id}`}>View Details</Link>
+            <Link href={shelter.isUser ? `/shelters/${shelter.id}?user=true` : `/shelters/${shelter.id}`}>
+              View Details
+            </Link>
           </Button>
           <Button variant="outline" size="icon" className="bg-transparent">
             <Phone className="w-4 h-4" />

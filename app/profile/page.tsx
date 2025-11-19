@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { User, Mail, Phone, MapPin, Settings, FileText, PlusCircle, AlertTriangle, Heart, Camera, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { apiClient } from '@/lib/api'
+import { getProfileImageUrl } from '@/lib/profile-image-utils'
 
 export default function ProfilePage() {
   const { user, isAuthenticated } = useAuth()
@@ -25,6 +27,7 @@ export default function ProfilePage() {
   const [newPhotoPreview, setNewPhotoPreview] = useState('')
   const [newPhotoCaption, setNewPhotoCaption] = useState('')
   const [addingPhoto, setAddingPhoto] = useState(false)
+  const [expandedCaptions, setExpandedCaptions] = useState<Record<string, boolean>>({})
 
   // Fetch user photos for shelters and vets
   useEffect(() => {
@@ -308,11 +311,13 @@ export default function ProfilePage() {
                     )}
                     <div className="space-y-2">
                       <Label htmlFor="photoCaption">Caption (optional)</Label>
-                      <Input
+                      <Textarea
                         id="photoCaption"
-                        placeholder="Describe this photo..."
+                        placeholder="Describe what this photo shows (e.g., lobby, exam room, play yard, team, etc.)"
                         value={newPhotoCaption}
                         onChange={(e) => setNewPhotoCaption(e.target.value)}
+                        rows={3}
+                        className="min-h-24"
                       />
                     </div>
                     <Button
@@ -333,11 +338,10 @@ export default function ProfilePage() {
                       {userPhotos.map((photo) => (
                         <div key={photo.id} className="relative group">
                           <div className="aspect-[4/3] relative overflow-hidden rounded-lg border shadow-sm">
-                            <Image
-                              src={photo.photoUrl}
+                            <img
+                              src={getProfileImageUrl(photo.photoUrl) || photo.photoUrl}
                               alt={photo.caption || 'User photo'}
-                              fill
-                              className="object-cover hover:scale-105 transition-transform duration-300"
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                             />
                             {photo.isPrimary && (
                               <Badge className="absolute top-2 left-2 text-xs bg-blue-500">Primary</Badge>
@@ -352,13 +356,35 @@ export default function ProfilePage() {
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
-                          {photo.caption && (
-                            <div className="mt-2 p-2 bg-muted/50 rounded text-center">
-                              <p className="text-sm text-muted-foreground">
-                                {photo.caption}
-                              </p>
-                            </div>
-                          )}
+                          {photo.caption && (() => {
+                            const isExpanded = expandedCaptions[photo.id]
+                            const isLong = photo.caption.length > 140
+                            const displayedCaption = !isLong || isExpanded
+                              ? photo.caption
+                              : `${photo.caption.slice(0, 140)}...`
+
+                            return (
+                              <div className="mt-2 p-2 bg-muted/50 rounded text-center">
+                                <p className="text-xs text-muted-foreground whitespace-pre-line">
+                                  {displayedCaption}
+                                </p>
+                                {isLong && (
+                                  <button
+                                    type="button"
+                                    className="mt-1 text-xs text-primary hover:underline"
+                                    onClick={() =>
+                                      setExpandedCaptions((prev) => ({
+                                        ...prev,
+                                        [photo.id]: !isExpanded,
+                                      }))
+                                    }
+                                  >
+                                    {isExpanded ? 'Show less' : 'Show more'}
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          })()}
                         </div>
                       ))}
                     </div>

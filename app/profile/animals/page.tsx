@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiClient } from '@/lib/api'
+import { getProfileImageUrl } from '@/lib/profile-image-utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -172,13 +173,19 @@ export default function MyAnimalsPage() {
               // Check both possible photo array names and photo URL properties
               const photos = animal.animalPhotos || animal.photos || []
               const primaryPhoto = photos.find((p: any) => p.isPrimary) || photos[0]
-              const photoUrl = primaryPhoto?.photoUrl || primaryPhoto?.filePath || "/a-cute-pet.png"
+              const rawPhotoUrl = primaryPhoto?.photoUrl || primaryPhoto?.filePath
+              const displayPhotoUrl =
+                rawPhotoUrl
+                  ? (rawPhotoUrl.startsWith('data:')
+                      ? rawPhotoUrl
+                      : (getProfileImageUrl(rawPhotoUrl) || "/a-cute-pet.png"))
+                  : "/a-cute-pet.png"
 
               return (
                 <Card key={animal.id} className="overflow-hidden">
                   <div className="aspect-[4/3] relative">
                     <Image
-                      src={photoUrl.startsWith('/api') ? photoUrl : (photoUrl.startsWith('http') ? photoUrl : `/api${photoUrl}`)}
+                      src={displayPhotoUrl}
                       alt={animal.name}
                       fill
                       className="object-cover"

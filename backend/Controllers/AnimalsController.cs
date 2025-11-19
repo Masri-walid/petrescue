@@ -165,7 +165,7 @@ namespace PetRescueConnect.API.Controllers
         {
             try
             {
-                // Get current user and their organization
+                // Get current user
                 var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var userRole = User.FindFirst("user_type")?.Value;
 
@@ -174,20 +174,18 @@ namespace PetRescueConnect.API.Controllers
                     return BadRequest(new { message = "Invalid user ID" });
                 }
 
-                // Get user's organization for shelter and veterinarian users
-                if (userRole == "veterinarian" || userRole == "shelter")
+                // Only allow shelters and veterinarians to create animals
+                if (userRole != "veterinarian" && userRole != "shelter")
                 {
-                    var userWithOrgs = await _userRepository.GetUserWithOrganizationsAsync(userGuid);
-                    var activeOrg = userWithOrgs?.UserOrganizations?.FirstOrDefault(uo => uo.IsActive);
+                    return Forbid("Only shelters and veterinarians can create animals");
+                }
 
-                    if (activeOrg != null)
-                    {
-                        createAnimalDto.OrganizationId = activeOrg.OrganizationId;
-                    }
-                    else
-                    {
-                        return BadRequest(new { message = "User is not associated with any active organization" });
-                    }
+                // If the user is associated with an active organization, link the animal to it
+                var userWithOrgs = await _userRepository.GetUserWithOrganizationsAsync(userGuid);
+                var activeOrg = userWithOrgs?.UserOrganizations?.FirstOrDefault(uo => uo.IsActive);
+                if (activeOrg != null)
+                {
+                    createAnimalDto.OrganizationId = activeOrg.OrganizationId;
                 }
 
                 var animal = _mapper.Map<Animal>(createAnimalDto);
@@ -219,22 +217,20 @@ namespace PetRescueConnect.API.Controllers
                     return BadRequest(new { message = "Invalid user ID" });
                 }
 
+                // Only allow shelters and veterinarians to create animals
+                if (userRole != "veterinarian" && userRole != "shelter")
+                {
+                    return Forbid("Only shelters and veterinarians can create animals");
+                }
+
                 Guid? organizationId = null;
 
-                // Get user's organization for shelter and veterinarian users
-                if (userRole == "veterinarian" || userRole == "shelter")
+                // If the user is associated with an active organization, link the animal to it
+                var userWithOrgs = await _userRepository.GetUserWithOrganizationsAsync(userGuid);
+                var activeOrg = userWithOrgs?.UserOrganizations?.FirstOrDefault(uo => uo.IsActive);
+                if (activeOrg != null)
                 {
-                    var userWithOrgs = await _userRepository.GetUserWithOrganizationsAsync(userGuid);
-                    var activeOrg = userWithOrgs?.UserOrganizations?.FirstOrDefault(uo => uo.IsActive);
-
-                    if (activeOrg != null)
-                    {
-                        organizationId = activeOrg.OrganizationId;
-                    }
-                    else
-                    {
-                        return BadRequest(new { message = "User is not associated with any active organization" });
-                    }
+                    organizationId = activeOrg.OrganizationId;
                 }
 
                 // Extract animal data from form

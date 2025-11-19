@@ -11,7 +11,6 @@ namespace PetRescueConnect.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class UserPhotosController : ControllerBase
     {
         private readonly PetRescueDbContext _context;
@@ -24,18 +23,35 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<UserPhotoDto>>> GetUserPhotos([FromQuery] Guid? userId = null)
         {
             try
             {
+                // Determine target user:
+                // - If userId is provided, use that (public access allowed)
+                // - Otherwise, require a valid authenticated user and use their ID
+                Guid? currentUserGuid = null;
                 var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(currentUserId) || !Guid.TryParse(currentUserId, out var currentUserGuid))
+                if (!string.IsNullOrEmpty(currentUserId) && Guid.TryParse(currentUserId, out var parsedCurrentUserId))
                 {
-                    return Unauthorized(new { message = "Invalid user token" });
+                    currentUserGuid = parsedCurrentUserId;
                 }
 
-                // If no userId specified, get current user's photos
-                var targetUserId = userId ?? currentUserGuid;
+                Guid targetUserId;
+                if (userId.HasValue)
+                {
+                    targetUserId = userId.Value;
+                }
+                else
+                {
+                    if (!currentUserGuid.HasValue)
+                    {
+                        return Unauthorized(new { message = "Invalid user token" });
+                    }
+
+                    targetUserId = currentUserGuid.Value;
+                }
 
                 var photos = await _context.UserPhotos
                     .Where(p => p.UserId == targetUserId)
@@ -62,6 +78,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<UserPhotoDto>> CreateUserPhoto([FromBody] CreateUserPhotoDto createDto)
         {
             try
@@ -109,6 +126,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<ActionResult<UserPhotoDto>> UpdateUserPhoto(Guid id, [FromBody] UpdateUserPhotoDto updateDto)
         {
             try
@@ -153,6 +171,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<ActionResult> DeleteUserPhoto(Guid id)
         {
             try

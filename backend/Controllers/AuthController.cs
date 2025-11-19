@@ -302,6 +302,7 @@ namespace PetRescueConnect.API.Controllers
         }
 
         [HttpGet("users/by-type")]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<object>>> GetUsersByType([FromQuery] string? userType = null)
         {
             try
