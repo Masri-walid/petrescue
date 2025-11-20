@@ -24,6 +24,7 @@ namespace PetRescueConnect.API.DTOs
         public bool IsVerified { get; set; }
         public List<OrganizationHourDto> OrganizationHours { get; set; } = new List<OrganizationHourDto>();
         public List<OrganizationServiceDto> OrganizationServices { get; set; } = new List<OrganizationServiceDto>();
+        public List<OrganizationSpecialtyDto> OrganizationSpecialties { get; set; } = new List<OrganizationSpecialtyDto>();
     }
 
     public class OrganizationHourDto
@@ -38,6 +39,11 @@ namespace PetRescueConnect.API.DTOs
     {
         public string ServiceName { get; set; } = string.Empty;
         public string? Description { get; set; }
+    }
+
+    public class OrganizationSpecialtyDto
+    {
+        public string Specialty { get; set; } = string.Empty;
     }
 
     public class CreateOrganizationDto
@@ -76,6 +82,11 @@ namespace PetRescueConnect.API.DTOs
         public string? Website { get; set; }
         public string? LicenseNumber { get; set; }
         public int? Capacity { get; set; }
+
+        // Optional nested data for full organization schema
+        public List<CreateOrganizationHourDto>? OrganizationHours { get; set; }
+        public List<CreateOrganizationServiceDto>? OrganizationServices { get; set; }
+        public List<CreateOrganizationSpecialtyDto>? OrganizationSpecialties { get; set; }
     }
 
     public class UpdateOrganizationDto
@@ -96,5 +107,32 @@ namespace PetRescueConnect.API.DTOs
         public bool? IsFeatured { get; set; }
         public bool? IsVerified { get; set; }
         public bool? IsActive { get; set; }
+    }
+
+    // DTOs used when creating nested organization data
+    public class CreateOrganizationHourDto
+    {
+        [Required]
+        public int DayOfWeek { get; set; }
+
+        // Times are optional and expressed as "HH:mm" strings
+        public string? OpenTime { get; set; }
+        public string? CloseTime { get; set; }
+
+        public bool IsClosed { get; set; }
+    }
+
+    public class CreateOrganizationServiceDto
+    {
+        [Required]
+        public string ServiceName { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+    }
+
+    public class CreateOrganizationSpecialtyDto
+    {
+        [Required]
+        public string Specialty { get; set; } = string.Empty;
     }
 }

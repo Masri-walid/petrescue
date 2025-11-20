@@ -23,6 +23,7 @@ import { NavigationHeader } from "@/components/navigation-header"
 
 export default function SheltersPage() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
   const [typeFilter, setTypeFilter] = useState("All Types")
   const [sortBy, setSortBy] = useState("name")
   const [organizations, setOrganizations] = useState<any[]>([])
@@ -30,9 +31,18 @@ export default function SheltersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 500) // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   useEffect(() => {
     fetchData()
-  }, [searchTerm, typeFilter, sortBy])
+  }, [debouncedSearchTerm, typeFilter, sortBy])
 
   const fetchData = async () => {
     setLoading(true)
@@ -41,7 +51,7 @@ export default function SheltersPage() {
     try {
       // Fetch organizations
       const orgResponse = await apiClient.getOrganizations({
-        search: searchTerm || undefined,
+        search: debouncedSearchTerm || undefined,
         type: typeFilter !== "All Types" ? typeFilter : undefined,
         sortBy: sortBy,
       })
@@ -62,21 +72,32 @@ export default function SheltersPage() {
         let searchFilteredUsers = usersResponse.data
 
         // Apply search filter to users if needed
-        if (searchTerm) {
-          const searchLower = searchTerm.toLowerCase()
-          searchFilteredUsers = usersResponse.data.filter((user: any) =>
-            user.firstName?.toLowerCase().includes(searchLower) ||
-            user.lastName?.toLowerCase().includes(searchLower) ||
-            user.city?.toLowerCase().includes(searchLower) ||
-            user.state?.toLowerCase().includes(searchLower)
-          )
+        if (debouncedSearchTerm) {
+          const searchLower = debouncedSearchTerm.toLowerCase()
+          searchFilteredUsers = usersResponse.data.filter((user: any) => {
+            // Search in name
+            const nameMatch = user.firstName?.toLowerCase().includes(searchLower) ||
+                             user.lastName?.toLowerCase().includes(searchLower)
+
+            // Search in location
+            const locationMatch = user.address?.toLowerCase().includes(searchLower) ||
+                                 user.city?.toLowerCase().includes(searchLower) ||
+                                 user.state?.toLowerCase().includes(searchLower) ||
+                                 user.zipCode?.toLowerCase().includes(searchLower)
+
+            // Search in details/description
+            const detailsMatch = user.bio?.toLowerCase().includes(searchLower) ||
+                                user.specialties?.some((s: string) => s.toLowerCase().includes(searchLower))
+
+            return nameMatch || locationMatch || detailsMatch
+          })
         }
 
         // Apply type filter to users
         if (typeFilter !== "All Types") {
-          if (typeFilter === "veterinary_clinic") {
+          if (typeFilter === "Veterinary Clinic") {
             searchFilteredUsers = searchFilteredUsers.filter((user: any) => user.userType === 'veterinarian')
-          } else if (typeFilter === "shelter") {
+          } else if (typeFilter === "Animal Shelter") {
             searchFilteredUsers = searchFilteredUsers.filter((user: any) => user.userType === 'shelter')
           }
         }
@@ -182,9 +203,7 @@ export default function SheltersPage() {
               <SelectContent>
                 <SelectItem value="All Types">All Types</SelectItem>
                 <SelectItem value="Animal Shelter">Animal Shelters</SelectItem>
-                <SelectItem value="Rescue Organization">Rescue Organizations</SelectItem>
-                <SelectItem value="Animal Sanctuary">Animal Sanctuaries</SelectItem>
-                <SelectItem value="Veterinary Clinic">Veterinary Clinics</SelectItem>
+                <SelectItem value="Veterinary Clinic">Veterinary Clinic</SelectItem>
               </SelectContent>
             </Select>
             <Select value={sortBy} onValueChange={setSortBy}>

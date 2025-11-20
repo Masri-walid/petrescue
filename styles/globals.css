@@ -201,26 +201,26 @@
   }
 
   /* Select/Dropdown Styling - Fix Transparency */
-  [data-radix-select-trigger] {
+  [data-slot="select-trigger"] {
     @apply bg-background border-2 border-input text-foreground !important;
     background-color: hsl(var(--background)) !important;
     opacity: 1 !important;
   }
 
-  [data-radix-select-content] {
+  [data-slot="select-content"] {
     @apply bg-background border border-border shadow-lg !important;
     background-color: hsl(var(--background)) !important;
     opacity: 1 !important;
     z-index: 50 !important;
   }
 
-  [data-radix-select-item] {
+  [data-slot="select-item"] {
     @apply bg-background text-foreground hover:bg-accent hover:text-accent-foreground !important;
     background-color: hsl(var(--background)) !important;
     opacity: 1 !important;
   }
 
-  /* Additional Select Component Fixes */
+  /* Additional Select Component Fixes (for any custom select classes) */
   .select-trigger {
     @apply bg-background border border-input text-foreground !important;
     background-color: hsl(var(--background)) !important;

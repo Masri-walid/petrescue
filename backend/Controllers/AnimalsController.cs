@@ -68,10 +68,26 @@ namespace PetRescueConnect.API.Controllers
                 // Apply additional filters
                 if (!string.IsNullOrEmpty(search))
                 {
+                    var searchLower = search.ToLower();
                     animals = animals.Where(a =>
-                        (a.Name != null && a.Name.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
-                        (a.Breed != null && a.Breed.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
-                        (a.Description != null && a.Description.Contains(search, StringComparison.OrdinalIgnoreCase)));
+                        (a.Name != null && a.Name.ToLower().Contains(searchLower)) ||
+                        (a.Species != null && a.Species.ToLower().Contains(searchLower)) ||
+                        (a.Breed != null && a.Breed.ToLower().Contains(searchLower)) ||
+                        (a.Color != null && a.Color.ToLower().Contains(searchLower)) ||
+                        (a.Gender != null && a.Gender.ToLower().Contains(searchLower)) ||
+                        (a.AgeCategory != null && a.AgeCategory.ToLower().Contains(searchLower)) ||
+                        (a.Size != null && a.Size.ToLower().Contains(searchLower)) ||
+                        (a.Description != null && a.Description.ToLower().Contains(searchLower)) ||
+                        (a.SpecialNeeds != null && a.SpecialNeeds.ToLower().Contains(searchLower)) ||
+                        (a.PersonalityTraits != null && a.PersonalityTraits.Any(pt => pt.ToLower().Contains(searchLower))) ||
+                        (a.MedicalConditions != null && a.MedicalConditions.Any(mc => mc.ToLower().Contains(searchLower))) ||
+                        (a.Organization != null && (
+                            (a.Organization.Name != null && a.Organization.Name.ToLower().Contains(searchLower)) ||
+                            (a.Organization.Address != null && a.Organization.Address.ToLower().Contains(searchLower)) ||
+                            (a.Organization.City != null && a.Organization.City.ToLower().Contains(searchLower)) ||
+                            (a.Organization.State != null && a.Organization.State.ToLower().Contains(searchLower)) ||
+                            (a.Organization.ZipCode != null && a.Organization.ZipCode.ToLower().Contains(searchLower))
+                        )));
                 }
 
                 if (!string.IsNullOrEmpty(type) && type != "All Types")

@@ -48,7 +48,7 @@ interface ReportsResponse {
 }
 
 export default function NotificationsPage() {
-  const { user } = useAuth()
+  const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const [reports, setReports] = useState<RescueReport[]>([])
   const [loading, setLoading] = useState(true)
@@ -56,41 +56,59 @@ export default function NotificationsPage() {
   const [filters, setFilters] = useState({
     status: 'all',
     urgency: 'all',
-    search: ''
+    search: '',
+    showOnlyClaimed: false // New filter for claimed reports
   })
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
 
   // Check if user has access to this page
   useEffect(() => {
-    if (!user) {
-      router.push('/auth/login')
+    // Wait for auth to finish loading before redirecting
+    if (!authLoading && !user) {
+      router.push('/login')
       return
     }
-    
-    if (user.role !== 'veterinarian' && user.role !== 'shelter') {
+
+    if (!authLoading && user && user.role !== 'veterinarian' && user.role !== 'shelter') {
       router.push('/')
       return
     }
-  }, [user, router])
+  }, [user, authLoading, router])
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(filters.search)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [filters.search])
 
   // Fetch rescue reports
   const fetchReports = async () => {
     try {
       setLoading(true)
       setError(null)
-      
+
       const params = new URLSearchParams({
         page: currentPage.toString(),
         pageSize: '10'
       })
-      
+
       if (filters.status && filters.status !== 'all') params.append('status', filters.status)
       if (filters.urgency && filters.urgency !== 'all') params.append('urgencyLevel', filters.urgency)
-      
+
+      // Filter by organization if "show only claimed" is enabled
+      if (filters.showOnlyClaimed && user?.organizationId) {
+        params.append('organizationId', user.organizationId)
+      }
+
       const response = await apiClient.request<ReportsResponse>(`/RescueReports?${params}`)
-      
+
       if (response.error) {
         setError(response.error)
       } else {
@@ -110,7 +128,7 @@ export default function NotificationsPage() {
     if (user && (user.role === 'veterinarian' || user.role === 'shelter')) {
       fetchReports()
     }
-  }, [user, currentPage, filters])
+  }, [user, currentPage, filters.status, filters.urgency, filters.showOnlyClaimed, debouncedSearch])
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency.toLowerCase()) {
@@ -159,8 +177,47 @@ export default function NotificationsPage() {
     }
   }
 
+  const handleStatusChange = async (reportId: string, newStatus: string) => {
+    try {
+      setUpdatingStatus(reportId)
+      const response = await apiClient.updateRescueReportStatus(reportId, newStatus)
+      if (response.error) {
+        setError(response.error)
+      } else {
+        // Refresh the reports list
+        fetchReports()
+      }
+    } catch (err) {
+      console.error('Error updating status:', err)
+      setError('Failed to update status. Please try again.')
+    } finally {
+      setUpdatingStatus(null)
+    }
+  }
+
+  // Check if current user's organization owns this report
+  const canUpdateStatus = (report: RescueReport) => {
+    return report.assignedOrganizationId === user?.organizationId
+  }
+
+  // Show loading state while auth is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <NavigationHeader />
+        <div className="container mx-auto px-4 py-8 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // If not loading and no user or wrong role, the useEffect will redirect
   if (!user || (user.role !== 'veterinarian' && user.role !== 'shelter')) {
-    return null // Will redirect in useEffect
+    return null
   }
 
   return (
@@ -186,46 +243,62 @@ export default function NotificationsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Status</label>
-              <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="reported">Reported</SelectItem>
-                  <SelectItem value="assigned">Assigned</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="resolved">Resolved</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2">Urgency</label>
-              <Select value={filters.urgency} onValueChange={(value) => setFilters(prev => ({ ...prev, urgency: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All urgency levels" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All urgency levels</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="moderate">Moderate</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2">Search</label>
-              <Input
-                placeholder="Search by animal type, location..."
-                value={filters.search}
-                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+          <div className="space-y-4">
+            {/* Toggle for claimed reports */}
+            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <input
+                type="checkbox"
+                id="showOnlyClaimed"
+                checked={filters.showOnlyClaimed}
+                onChange={(e) => setFilters(prev => ({ ...prev, showOnlyClaimed: e.target.checked }))}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
               />
+              <label htmlFor="showOnlyClaimed" className="text-sm font-medium text-blue-900 cursor-pointer">
+                Show only my claimed reports
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Status</label>
+                <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="assigned">Assigned</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Urgency</label>
+                <Select value={filters.urgency} onValueChange={(value) => setFilters(prev => ({ ...prev, urgency: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All urgency levels" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All urgency levels</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="moderate">Moderate</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Search</label>
+                <Input
+                  placeholder="Search by animal type, location..."
+                  value={filters.search}
+                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                />
+              </div>
             </div>
           </div>
         </CardContent>
@@ -378,18 +451,48 @@ export default function NotificationsPage() {
                       </div>
                     )}
 
-                    {report.status === 'reported' && (
-                      <Button
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          handleClaimReport(report.id)
-                        }}
-                        className="mt-4 w-full"
-                      >
-                        Claim Report
-                      </Button>
-                    )}
+                    {/* Action buttons */}
+                    <div className="mt-4 space-y-2">
+                      {report.status === 'pending' && !report.assignedOrganizationId && (
+                        <Button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleClaimReport(report.id)
+                          }}
+                          className="w-full bg-blue-600 hover:bg-blue-700"
+                        >
+                          Claim Report
+                        </Button>
+                      )}
+
+                      {/* Status change for claimed reports */}
+                      {canUpdateStatus(report) && (
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium">Update Status</label>
+                          <Select
+                            value={report.status}
+                            onValueChange={(newStatus) => {
+                              handleStatusChange(report.id, newStatus)
+                            }}
+                            disabled={updatingStatus === report.id}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="assigned">Assigned</SelectItem>
+                              <SelectItem value="in_progress">In Progress</SelectItem>
+                              <SelectItem value="resolved">Resolved</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {updatingStatus === report.id && (
+                            <p className="text-xs text-gray-500">Updating...</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 

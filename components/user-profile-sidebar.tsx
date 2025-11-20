@@ -109,29 +109,32 @@ export function UserProfileSidebar() {
         </Avatar>
       </Button>
 
-      {/* Overlay */}
+      {/* Overlay - dim page content but NOT the navbar */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-50"
+        <div
+          className="fixed right-0 top-0 bottom-0 w-80 max-w-[90vw] bg-black/50 z-40"
+          style={{ top: '73px' }}
           onClick={() => setIsOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <div
-        className={`fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-white dark:bg-gray-900 shadow-2xl border-l border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0 z-50' : 'translate-x-full -z-10 pointer-events-none opacity-0'
         }`}
         style={{
-          visibility: isOpen ? 'visible' : 'hidden'
+          visibility: isOpen ? 'visible' : 'hidden',
+          backgroundColor: 'white',
+          opacity: isOpen ? 1 : 0
         }}
       >
-        <div className="p-6">
+        <div className="p-6 h-full" style={{ backgroundColor: '#ffffff', opacity: 1 }}>
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">Profile</h2>
-            <Button 
-              variant="ghost" 
+          <div className="flex items-center justify-between mb-6" style={{ backgroundColor: '#ffffff' }}>
+            <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => setIsOpen(false)}
             >
@@ -140,7 +143,7 @@ export function UserProfileSidebar() {
           </div>
 
           {/* User Info */}
-          <div className="flex flex-col items-center mb-6">
+          <div className="flex flex-col items-center mb-6" style={{ backgroundColor: '#ffffff' }}>
             <Avatar className="h-20 w-20 mb-4">
               <AvatarImage src={profileAvatarSrc} alt={getUserDisplayName(user.firstName, user.lastName)} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xl">
@@ -148,25 +151,25 @@ export function UserProfileSidebar() {
               </AvatarFallback>
             </Avatar>
 
-            <div className="text-center">
+            <div className="text-center" style={{ backgroundColor: '#ffffff' }}>
               <div className="flex items-center gap-2 justify-center mb-2">
-                <h3 className="text-lg font-medium">
+                <h3 className="text-lg font-medium text-gray-900">
                   {user.firstName} {user.lastName}
                 </h3>
-                <div className="flex items-center gap-1 px-2 py-1 bg-muted rounded-full">
+                <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-full">
                   {getRoleIcon(user.role)}
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-gray-600">
                     {getRoleLabel(user.role)}
                   </span>
                 </div>
               </div>
-              
-              <p className="text-sm text-muted-foreground mb-2">
+
+              <p className="text-sm text-gray-600 mb-2">
                 {user.email}
               </p>
-              
+
               {user.phone && (
-                <p className="text-sm text-muted-foreground mb-2">
+                <p className="text-sm text-gray-600 mb-2">
                   {user.phone}
                 </p>
               )}
@@ -190,7 +193,7 @@ export function UserProfileSidebar() {
           </div>
 
           {/* Menu Items */}
-          <div className="space-y-2">
+          <div className="space-y-2" style={{ backgroundColor: '#ffffff' }}>
             <Button
               variant="ghost"
               className="w-full justify-start"
@@ -248,11 +251,9 @@ export function UserProfileSidebar() {
               </>
             )}
 
-            <hr className="my-4" />
-            
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 mt-4"
               onClick={handleLogout}
             >
               <LogOut className="mr-3 h-4 w-4" />

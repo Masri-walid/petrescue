@@ -10,6 +10,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useParams } from "next/navigation"
 import { apiClient } from "@/lib/api"
+import AdoptionApplicationForm from "@/components/adoption-application-form"
 
 
 
@@ -364,6 +365,16 @@ export default function PetDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Adoption Application Form Modal */}
+      {showApplicationForm && pet && (
+        <AdoptionApplicationForm
+          petName={pet.name}
+          animalId={pet.id}
+          organizationId={pet.organizationId}
+          onClose={() => setShowApplicationForm(false)}
+        />
+      )}
     </div>
   )
 }

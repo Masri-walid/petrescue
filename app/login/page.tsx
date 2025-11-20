@@ -35,9 +35,7 @@ export default function LoginPage() {
 
       if (result.success) {
         console.log("Login successful")
-        // Show success message
-        alert("Login successful! Welcome back!")
-        // Redirect to dashboard or home
+        // Redirect to dashboard or home (no popup)
         router.push("/")
       } else {
         setError(result.error || "Login failed. Please check your credentials.")

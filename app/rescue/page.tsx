@@ -98,6 +98,7 @@ export default function RescuePage() {
     try {
       // Map form data to API expected format
       const reportData = {
+        reporterId: user?.id, // Include the current user's ID if logged in
         animalType: formData.animalType,
         urgencyLevel: formData.urgency,
         animalCondition: formData.condition,
@@ -109,6 +110,8 @@ export default function RescuePage() {
         latitude: coordinates?.latitude || 45.5017, // Default to Montreal coordinates if no location
         longitude: coordinates?.longitude || -73.5673, // Default to Montreal coordinates if no location
       }
+
+      console.log('Submitting rescue report with data:', reportData)
 
       const response = await apiClient.createRescueReport(reportData, photos)
 

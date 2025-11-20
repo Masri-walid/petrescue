@@ -1,12 +1,15 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using PetRescueConnect.API.Data;
 using PetRescueConnect.API.DTOs;
 using PetRescueConnect.API.Interfaces;
 using PetRescueConnect.API.Models;
-using PetRescueConnect.API.Data;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Claims;
-using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace PetRescueConnect.API.Controllers
 {
@@ -18,13 +21,23 @@ namespace PetRescueConnect.API.Controllers
         private readonly IUserRepository _userRepository;
         private readonly IMapper _mapper;
         private readonly PetRescueDbContext _context;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IConfiguration _configuration;
 
-        public RescueReportsController(IGenericRepository<RescueReport> rescueReportRepository, IUserRepository userRepository, IMapper mapper, PetRescueDbContext context)
+        public RescueReportsController(
+            IGenericRepository<RescueReport> rescueReportRepository,
+            IUserRepository userRepository,
+            IMapper mapper,
+            PetRescueDbContext context,
+            IHttpClientFactory httpClientFactory,
+            IConfiguration configuration)
         {
             _rescueReportRepository = rescueReportRepository;
             _userRepository = userRepository;
             _mapper = mapper;
             _context = context;
+            _httpClientFactory = httpClientFactory;
+            _configuration = configuration;
         }
 
         [HttpGet]
@@ -34,6 +47,7 @@ namespace PetRescueConnect.API.Controllers
             [FromQuery] string? urgencyLevel = null,
             [FromQuery] Guid? organizationId = null,
             [FromQuery] Guid? reporterId = null,
+            [FromQuery] string? search = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? sortBy = "createdAt")
@@ -66,6 +80,18 @@ namespace PetRescueConnect.API.Controllers
                 if (reporterId.HasValue)
                 {
                     query = query.Where(r => r.ReporterId == reporterId);
+                }
+
+                // Apply search filter
+                if (!string.IsNullOrEmpty(search))
+                {
+                    var searchLower = search.ToLower();
+                    query = query.Where(r =>
+                        (r.AnimalType != null && r.AnimalType.ToLower().Contains(searchLower)) ||
+                        (r.Description != null && r.Description.ToLower().Contains(searchLower)) ||
+                        (r.LocationAddress != null && r.LocationAddress.ToLower().Contains(searchLower)) ||
+                        (r.ContactName != null && r.ContactName.ToLower().Contains(searchLower)) ||
+                        (r.AnimalCondition != null && r.AnimalCondition.ToLower().Contains(searchLower)));
                 }
 
                 // Apply sorting
@@ -253,6 +279,8 @@ namespace PetRescueConnect.API.Controllers
 
                 var createdReport = await _rescueReportRepository.AddAsync(report);
 
+                var newPhotos = new List<RescueReportPhoto>();
+
                 // Process and save photos if provided
                 if (photos != null && photos.Count > 0)
                 {
@@ -274,9 +302,15 @@ namespace PetRescueConnect.API.Controllers
                             };
 
                             _context.RescueReportPhotos.Add(rescueReportPhoto);
+                            newPhotos.Add(rescueReportPhoto);
                         }
                     }
                     await _context.SaveChangesAsync();
+                }
+
+                if (newPhotos.Count > 0)
+                {
+                    await AnalyzeAndSavePhotoMetadataAsync(newPhotos);
                 }
 
                 var reportDto = _mapper.Map<RescueReportDto>(createdReport);
@@ -518,5 +552,149 @@ namespace PetRescueConnect.API.Controllers
                 return StatusCode(500, new { message = "An error occurred", error = ex.Message });
             }
         }
+
+        private class PhotoCharacteristicResult
+        {
+            public string Name { get; set; } = string.Empty;
+            public string Value { get; set; } = string.Empty;
+            public decimal? Confidence { get; set; }
+        }
+
+        private class PhotoAnalysisResult
+        {
+            public double[] Embedding { get; set; } = Array.Empty<double>();
+            public List<PhotoCharacteristicResult>? Characteristics { get; set; }
+        }
+
+        private async Task AnalyzeAndSavePhotoMetadataAsync(IEnumerable<RescueReportPhoto> photos)
+        {
+            var mlServiceUrl = _configuration["MLService:Url"] ?? "http://localhost:5001";
+            var httpClient = _httpClientFactory.CreateClient();
+            httpClient.Timeout = TimeSpan.FromMinutes(5);
+
+            // Cache characteristics by name to avoid repeated lookups
+            var characteristicCache = await _context.Characteristics
+                .ToDictionaryAsync(c => c.Name, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var photo in photos)
+            {
+                if (photo.PhotoData == null || photo.PhotoData.Length == 0)
+                {
+                    continue;
+                }
+
+                using var content = new MultipartFormDataContent();
+                var byteContent = new ByteArrayContent(photo.PhotoData);
+                if (!string.IsNullOrEmpty(photo.ContentType))
+                {
+                    byteContent.Headers.ContentType = new MediaTypeHeaderValue(photo.ContentType);
+                }
+
+                content.Add(byteContent, "photo", photo.FileName ?? $"{photo.Id}.jpg");
+
+                HttpResponseMessage response;
+                try
+                {
+                    response = await httpClient.PostAsync($"{mlServiceUrl}/api/analyze-photo", content);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error calling ML analyze-photo endpoint: {ex.Message}");
+                    continue;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    continue;
+                }
+
+                var json = await response.Content.ReadAsStringAsync();
+                PhotoAnalysisResult? analysis;
+                try
+                {
+                    analysis = JsonSerializer.Deserialize<PhotoAnalysisResult>(json, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error deserializing analyze-photo response: {ex.Message}");
+                    continue;
+                }
+
+                if (analysis == null || analysis.Embedding == null || analysis.Embedding.Length == 0)
+                {
+                    continue;
+                }
+
+                // Upsert embedding for this photo
+                var existingEmbedding = await _context.PhotoEmbeddings
+                    .FirstOrDefaultAsync(e => e.PhotoId == photo.Id);
+
+                if (existingEmbedding == null)
+                {
+                    existingEmbedding = new PhotoEmbedding
+                    {
+                        PhotoId = photo.Id,
+                        Embedding = analysis.Embedding,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.PhotoEmbeddings.Add(existingEmbedding);
+                }
+                else
+                {
+                    existingEmbedding.Embedding = analysis.Embedding;
+                    existingEmbedding.CreatedAt = DateTime.UtcNow;
+                }
+
+                if (analysis.Characteristics != null)
+                {
+                    foreach (var ch in analysis.Characteristics)
+                    {
+                        if (string.IsNullOrWhiteSpace(ch.Name) || string.IsNullOrWhiteSpace(ch.Value))
+                        {
+                            continue;
+                        }
+
+                        if (!characteristicCache.TryGetValue(ch.Name, out var characteristic))
+                        {
+                            characteristic = new Characteristic
+                            {
+                                Name = ch.Name,
+                                DataType = "string",
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            _context.Characteristics.Add(characteristic);
+                            characteristicCache[ch.Name] = characteristic;
+                        }
+
+                        var existingPhotoChar = await _context.PhotoCharacteristics
+                            .FirstOrDefaultAsync(pc => pc.PhotoId == photo.Id && pc.CharacteristicId == characteristic.Id);
+
+                        if (existingPhotoChar == null)
+                        {
+                            var photoCharacteristic = new PhotoCharacteristic
+                            {
+                                PhotoId = photo.Id,
+                                CharacteristicId = characteristic.Id,
+                                Value = ch.Value,
+                                Confidence = ch.Confidence,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            _context.PhotoCharacteristics.Add(photoCharacteristic);
+                        }
+                        else
+                        {
+                            existingPhotoChar.Value = ch.Value;
+                            existingPhotoChar.Confidence = ch.Confidence;
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+            }
+        }
+
     }
 }

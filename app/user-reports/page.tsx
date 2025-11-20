@@ -14,6 +14,7 @@ import Link from 'next/link'
 
 interface RescueReport {
   id: string
+  reporterId?: string
   animalType: string
   urgencyLevel: string
   animalCondition: string
@@ -47,7 +48,7 @@ interface ReportsResponse {
 }
 
 export default function UserReportsPage() {
-  const { user } = useAuth()
+  const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const [reports, setReports] = useState<RescueReport[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,17 +58,28 @@ export default function UserReportsPage() {
     urgency: 'all',
     search: ''
   })
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
 
   // Check if user is logged in
   useEffect(() => {
-    if (!user) {
-      router.push('/auth/login')
+    // Wait for auth to finish loading before redirecting
+    if (!authLoading && !user) {
+      router.push('/login')
       return
     }
-  }, [user, router])
+  }, [user, authLoading, router])
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(filters.search)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [filters.search])
 
   // Fetch user's rescue reports
   const fetchReports = async () => {
@@ -80,6 +92,8 @@ export default function UserReportsPage() {
         return
       }
 
+      console.log('Fetching reports for user ID:', user.id)
+
       const params = new URLSearchParams({
         page: currentPage.toString(),
         pageSize: '10',
@@ -89,14 +103,31 @@ export default function UserReportsPage() {
       if (filters.status && filters.status !== 'all') params.append('status', filters.status)
       if (filters.urgency && filters.urgency !== 'all') params.append('urgencyLevel', filters.urgency)
 
+      console.log('API Request URL:', `/RescueReports?${params}`)
+
       const response = await apiClient.request<ReportsResponse>(`/RescueReports?${params}`)
+
+      console.log('API Response:', response)
 
       if (response.error) {
         setError(response.error)
       } else {
-        setReports(response.data?.reports || [])
-        setTotalCount(response.data?.totalCount || 0)
-        setTotalPages(response.data?.totalPages || 1)
+        const fetchedReports = response.data?.reports || []
+        console.log('Fetched reports count:', fetchedReports.length)
+        console.log('Reports data:', fetchedReports)
+
+        // Additional client-side filtering to ensure we only show reports where reporter_id matches
+        const userReports = fetchedReports.filter(report => {
+          const matches = report.reporterId === user.id
+          console.log(`Report ${report.id}: reporterId=${report.reporterId}, user.id=${user.id}, matches=${matches}`)
+          return matches
+        })
+
+        console.log('Filtered user reports count:', userReports.length)
+
+        setReports(userReports)
+        setTotalCount(userReports.length)
+        setTotalPages(Math.ceil(userReports.length / 10))
       }
     } catch (err) {
       console.error('Error fetching reports:', err)
@@ -110,7 +141,7 @@ export default function UserReportsPage() {
     if (user) {
       fetchReports()
     }
-  }, [user, currentPage, filters])
+  }, [user, currentPage, filters.status, filters.urgency, debouncedSearch])
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -143,6 +174,19 @@ export default function UserReportsPage() {
     })
   }
 
+  // Show loading state while auth is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If not loading and no user, the useEffect will redirect to login
   if (!user) {
     return null
   }

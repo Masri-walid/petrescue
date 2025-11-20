@@ -33,10 +33,15 @@ namespace PetRescueConnect.API.Mappings
             // Organization mappings
             CreateMap<Organization, OrganizationDto>()
                 .ForMember(dest => dest.Rating, opt => opt.MapFrom(src => src.Rating > 0 ? (double?)src.Rating : null));
+
             CreateMap<CreateOrganizationDto, Organization>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
-                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore());
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.OrganizationHours, opt => opt.Ignore())
+                .ForMember(dest => dest.OrganizationServices, opt => opt.Ignore())
+                .ForMember(dest => dest.OrganizationSpecialties, opt => opt.Ignore());
+
             CreateMap<UpdateOrganizationDto, Organization>()
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
@@ -46,8 +51,26 @@ namespace PetRescueConnect.API.Mappings
                 .ForMember(dest => dest.OpenTime, opt => opt.MapFrom(src => src.OpenTime.HasValue ? src.OpenTime.Value.ToString("HH:mm") : null))
                 .ForMember(dest => dest.CloseTime, opt => opt.MapFrom(src => src.CloseTime.HasValue ? src.CloseTime.Value.ToString("HH:mm") : null));
 
+            CreateMap<CreateOrganizationHourDto, OrganizationHour>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.OrganizationId, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.OpenTime, opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.OpenTime) ? TimeOnly.Parse(src.OpenTime) : (TimeOnly?)null))
+                .ForMember(dest => dest.CloseTime, opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.CloseTime) ? TimeOnly.Parse(src.CloseTime) : (TimeOnly?)null));
+
             // Organization Services mappings
             CreateMap<OrganizationService, OrganizationServiceDto>();
+            CreateMap<CreateOrganizationServiceDto, OrganizationService>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.OrganizationId, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore());
+
+            // Organization Specialties mappings
+            CreateMap<OrganizationSpecialty, OrganizationSpecialtyDto>();
+            CreateMap<CreateOrganizationSpecialtyDto, OrganizationSpecialty>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.OrganizationId, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore());
 
             // Animal mappings
             CreateMap<Animal, AnimalDto>();
@@ -76,7 +99,11 @@ namespace PetRescueConnect.API.Mappings
 
             // Adoption Application mappings
             CreateMap<AdoptionApplication, AdoptionApplicationDto>()
-                .ForMember(dest => dest.ApplicationData, opt => opt.MapFrom(src => src.ApplicationData));
+                .ForMember(dest => dest.ApplicationData, opt => opt.MapFrom(src => src.ApplicationData))
+                .ForMember(dest => dest.Animal, opt => opt.MapFrom(src => src.Animal))
+                .ForMember(dest => dest.Applicant, opt => opt.MapFrom(src => src.Applicant))
+                .ForMember(dest => dest.Organization, opt => opt.MapFrom(src => src.Organization))
+                .ForMember(dest => dest.Reviewer, opt => opt.MapFrom(src => src.Reviewer));
             CreateMap<CreateAdoptionApplicationDto, AdoptionApplication>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.ApplicationData, opt => opt.MapFrom<ApplicationDataResolver>())

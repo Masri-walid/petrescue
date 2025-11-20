@@ -16,6 +16,7 @@ import { NavigationHeader } from "@/components/navigation-header"
 export default function AdoptPage() {
   const { user, isAuthenticated } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
   const [filters, setFilters] = useState({
     type: "All Types",
     age: "All Ages",
@@ -52,9 +53,18 @@ export default function AdoptPage() {
     fetchFavorites()
   }, [isAuthenticated, user])
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   useEffect(() => {
     fetchAnimals()
-  }, [searchTerm, filters, currentPage])
+  }, [debouncedSearchTerm, filters, currentPage])
 
   const fetchAnimals = async () => {
     setLoading(true)
@@ -65,10 +75,27 @@ export default function AdoptPage() {
       let filteredFavorites = favoritesList
 
       // Apply other filters to favorites
-      if (searchTerm) {
+      if (debouncedSearchTerm) {
+        const searchLower = debouncedSearchTerm.toLowerCase()
         filteredFavorites = filteredFavorites.filter(animal =>
-          animal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          animal.breed.toLowerCase().includes(searchTerm.toLowerCase())
+          animal.name?.toLowerCase().includes(searchLower) ||
+          animal.species?.toLowerCase().includes(searchLower) ||
+          animal.breed?.toLowerCase().includes(searchLower) ||
+          animal.color?.toLowerCase().includes(searchLower) ||
+          animal.gender?.toLowerCase().includes(searchLower) ||
+          animal.age?.toLowerCase().includes(searchLower) ||
+          animal.size?.toLowerCase().includes(searchLower) ||
+          animal.description?.toLowerCase().includes(searchLower) ||
+          animal.specialNeeds?.toLowerCase().includes(searchLower) ||
+          animal.personalityTraits?.some((trait: string) => trait.toLowerCase().includes(searchLower)) ||
+          animal.medicalConditions?.some((condition: string) => condition.toLowerCase().includes(searchLower)) ||
+          (animal.organization && (
+            animal.organization.name?.toLowerCase().includes(searchLower) ||
+            animal.organization.address?.toLowerCase().includes(searchLower) ||
+            animal.organization.city?.toLowerCase().includes(searchLower) ||
+            animal.organization.state?.toLowerCase().includes(searchLower) ||
+            animal.organization.zipCode?.toLowerCase().includes(searchLower)
+          ))
         )
       }
       if (filters.type !== "All Types") {
@@ -88,7 +115,7 @@ export default function AdoptPage() {
     }
 
     const response = await apiClient.getAnimals({
-      search: searchTerm || undefined,
+      search: debouncedSearchTerm || undefined,
       type: filters.type !== "All Types" ? filters.type : undefined,
       age: filters.age !== "All Ages" ? filters.age : undefined,
       size: filters.size !== "All Sizes" ? filters.size : undefined,

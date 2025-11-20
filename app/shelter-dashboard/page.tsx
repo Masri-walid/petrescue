@@ -32,6 +32,7 @@ import { apiClient } from "@/lib/api"
 export default function ShelterDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -53,6 +54,15 @@ export default function ShelterDashboard() {
     fetchDashboardData()
   }, [])
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   useEffect(() => {
     if (activeTab === "animals") {
       fetchAnimals()
@@ -61,7 +71,7 @@ export default function ShelterDashboard() {
     } else if (activeTab === "rescues") {
       fetchRescueReports()
     }
-  }, [activeTab, searchTerm, statusFilter])
+  }, [activeTab, debouncedSearchTerm, statusFilter])
 
   const fetchDashboardData = async () => {
     setLoading(true)
@@ -105,7 +115,7 @@ export default function ShelterDashboard() {
 
   const fetchAnimals = async () => {
     const response = await apiClient.getAnimals({
-      search: searchTerm || undefined,
+      search: debouncedSearchTerm || undefined,
       status: statusFilter !== "All" ? statusFilter : undefined,
       sortBy: "name",
       pageSize: 50,

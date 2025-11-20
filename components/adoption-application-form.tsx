@@ -11,24 +11,29 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { X, Send } from "lucide-react"
+import { X, Send, CheckCircle } from "lucide-react"
+import { apiClient } from "@/lib/api"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface AdoptionApplicationFormProps {
   petName: string
+  animalId: string
+  organizationId: string
   onClose: () => void
 }
 
-export default function AdoptionApplicationForm({ petName, onClose }: AdoptionApplicationFormProps) {
+export default function AdoptionApplicationForm({ petName, animalId, organizationId, onClose }: AdoptionApplicationFormProps) {
+  const { user } = useAuth()
   const [formData, setFormData] = useState({
-    // Personal Information
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
+    // Personal Information - Auto-filled from user data
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    address: user?.address || "",
+    city: user?.city || "",
+    state: user?.state || "",
+    zipCode: user?.zipCode || "",
 
     // Housing Information
     housingType: "",
@@ -62,16 +67,50 @@ export default function AdoptionApplicationForm({ petName, onClose }: AdoptionAp
 
   const [currentStep, setCurrentStep] = useState(1)
   const totalSteps = 4
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Submit application
-    console.log("Application submitted:", formData)
-    onClose()
+
+    if (!user) {
+      setSubmitError("You must be logged in to submit an application")
+      return
+    }
+
+    setIsSubmitting(true)
+    setSubmitError(null)
+
+    try {
+      // Prepare application data as JSON
+      const applicationData = {
+        animalId,
+        applicantId: user.id,
+        organizationId,
+        applicationData: JSON.stringify(formData),
+        status: "submitted"
+      }
+
+      const response = await apiClient.createAdoptionApplication(applicationData)
+
+      if (response.error) {
+        setSubmitError(response.error)
+      } else {
+        setSubmitSuccess(true)
+        setTimeout(() => {
+          onClose()
+        }, 2000)
+      }
+    } catch (error: any) {
+      setSubmitError(error.message || "Failed to submit application")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const nextStep = () => {
@@ -113,6 +152,23 @@ export default function AdoptionApplicationForm({ petName, onClose }: AdoptionAp
               />
             </div>
           </div>
+
+          {submitSuccess && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              <div>
+                <p className="font-medium text-green-900">Application Submitted Successfully!</p>
+                <p className="text-sm text-green-700">The shelter will review your application soon.</p>
+              </div>
+            </div>
+          )}
+
+          {submitError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="font-medium text-red-900">Error</p>
+              <p className="text-sm text-red-700">{submitError}</p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             {/* Step 1: Personal Information */}
@@ -484,9 +540,26 @@ export default function AdoptionApplicationForm({ petName, onClose }: AdoptionAp
                   Next
                 </Button>
               ) : (
-                <Button type="submit" disabled={!formData.agreeTerms || !formData.agreeVisit || !formData.agreeContact}>
-                  <Send className="w-4 h-4 mr-2" />
-                  Submit Application
+                <Button
+                  type="submit"
+                  disabled={!formData.agreeTerms || !formData.agreeVisit || !formData.agreeContact || isSubmitting || submitSuccess}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="animate-spin mr-2">⏳</span>
+                      Submitting...
+                    </>
+                  ) : submitSuccess ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Submitted
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Submit Application
+                    </>
+                  )}
                 </Button>
               )}
             </div>

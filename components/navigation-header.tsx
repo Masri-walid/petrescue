@@ -31,21 +31,32 @@ export function NavigationHeader() {
             <Link href="/adopt" className="text-muted-foreground hover:text-foreground transition-colors">
               Adopt
             </Link>
+            <Link href="/find-my-pet" className="text-muted-foreground hover:text-foreground transition-colors">
+              Find My Pet
+            </Link>
             <Link href="/shelters" className="text-muted-foreground hover:text-foreground transition-colors">
               Shelters
             </Link>
-            <Link href="/rescue-dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
-              Rescue Reports
-            </Link>
 
-            {/* Role-based navigation for vets and shelters */}
-            {user && (user.role === 'veterinarian' || user.role === 'shelter') && (
+            {/* Role-based navigation */}
+            {user && (user.role === 'veterinarian' || user.role === 'shelter') ? (
               <>
+                {/* Vets and Shelters see Notifications instead of Rescue Dashboard */}
                 <Link href="/profile/animals" className="text-muted-foreground hover:text-foreground transition-colors">
                   My Animals
                 </Link>
                 <Link href="/notifications" className="text-muted-foreground hover:text-foreground transition-colors">
                   Notifications
+                </Link>
+                <Link href="/adoption-applications" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Applications
+                </Link>
+              </>
+            ) : (
+              <>
+                {/* Normal users see Rescue Dashboard */}
+                <Link href="/rescue-dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Rescue Reports
                 </Link>
               </>
             )}

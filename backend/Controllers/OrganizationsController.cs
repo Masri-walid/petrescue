@@ -55,8 +55,10 @@ namespace PetRescueConnect.API.Controllers
                     var searchLower = search.ToLower();
                     organizations = organizations.Where(o =>
                         o.Name.ToLower().Contains(searchLower) ||
+                        (o.Address != null && o.Address.ToLower().Contains(searchLower)) ||
                         o.City.ToLower().Contains(searchLower) ||
                         o.State.ToLower().Contains(searchLower) ||
+                        (o.ZipCode != null && o.ZipCode.ToLower().Contains(searchLower)) ||
                         (o.Description != null && o.Description.ToLower().Contains(searchLower)));
                 }
 
@@ -120,10 +122,39 @@ namespace PetRescueConnect.API.Controllers
                 organization.IsVerified = false; // New organizations need verification
                 organization.IsActive = true;
 
+                // Map optional nested data for full organization schema
+                if (createOrganizationDto.OrganizationHours != null && createOrganizationDto.OrganizationHours.Count > 0)
+                {
+                    foreach (var hourDto in createOrganizationDto.OrganizationHours)
+                    {
+                        var hour = _mapper.Map<OrganizationHour>(hourDto);
+                        organization.OrganizationHours.Add(hour);
+                    }
+                }
+
+                if (createOrganizationDto.OrganizationServices != null && createOrganizationDto.OrganizationServices.Count > 0)
+                {
+                    foreach (var serviceDto in createOrganizationDto.OrganizationServices)
+                    {
+                        var service = _mapper.Map<OrganizationService>(serviceDto);
+                        organization.OrganizationServices.Add(service);
+                    }
+                }
+
+                if (createOrganizationDto.OrganizationSpecialties != null && createOrganizationDto.OrganizationSpecialties.Count > 0)
+                {
+                    foreach (var specialtyDto in createOrganizationDto.OrganizationSpecialties)
+                    {
+                        var specialty = _mapper.Map<OrganizationSpecialty>(specialtyDto);
+                        organization.OrganizationSpecialties.Add(specialty);
+                    }
+                }
+
                 var createdOrganization = await _organizationRepository.AddAsync(organization);
                 var organizationDto = _mapper.Map<OrganizationDto>(createdOrganization);
 
-                return Ok(new {
+                return Ok(new
+                {
                     success = true,
                     message = "Organization registered successfully. It will be reviewed and verified by our team.",
                     data = organizationDto

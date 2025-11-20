@@ -1,6 +1,8 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using PetRescueConnect.API.Data;
 using PetRescueConnect.API.DTOs;
 using PetRescueConnect.API.Interfaces;
 using PetRescueConnect.API.Models;
@@ -13,11 +15,13 @@ namespace PetRescueConnect.API.Controllers
     public class AdoptionApplicationsController : ControllerBase
     {
         private readonly IGenericRepository<AdoptionApplication> _applicationRepository;
+        private readonly PetRescueDbContext _context;
         private readonly IMapper _mapper;
 
-        public AdoptionApplicationsController(IGenericRepository<AdoptionApplication> applicationRepository, IMapper mapper)
+        public AdoptionApplicationsController(IGenericRepository<AdoptionApplication> applicationRepository, PetRescueDbContext context, IMapper mapper)
         {
             _applicationRepository = applicationRepository;
+            _context = context;
             _mapper = mapper;
         }
 
@@ -30,27 +34,42 @@ namespace PetRescueConnect.API.Controllers
         {
             try
             {
-                IEnumerable<AdoptionApplication> applications;
+                // Get all applications with related entities
+                var query = _context.AdoptionApplications
+                    .Include(a => a.Animal)
+                    .Include(a => a.Applicant)
+                    .Include(a => a.Organization)
+                    .Include(a => a.Reviewer)
+                    .AsQueryable();
+
+                // Apply filters
+                if (organizationId.HasValue)
+                {
+                    query = query.Where(a => a.OrganizationId == organizationId.Value);
+                }
 
                 if (!string.IsNullOrEmpty(status))
                 {
-                    applications = await _applicationRepository.FindAsync(a => a.Status == status);
+                    query = query.Where(a => a.Status == status);
                 }
-                else if (animalId.HasValue)
+
+                if (animalId.HasValue)
                 {
-                    applications = await _applicationRepository.FindAsync(a => a.AnimalId == animalId);
+                    query = query.Where(a => a.AnimalId == animalId.Value);
                 }
-                else if (applicantId.HasValue)
+
+                if (applicantId.HasValue)
                 {
-                    applications = await _applicationRepository.FindAsync(a => a.ApplicantId == applicantId);
+                    query = query.Where(a => a.ApplicantId == applicantId.Value);
                 }
-                else if (organizationId.HasValue)
+
+                var applications = await query.ToListAsync();
+
+                // Debug logging
+                Console.WriteLine($"Found {applications.Count()} applications");
+                foreach (var app in applications)
                 {
-                    applications = await _applicationRepository.FindAsync(a => a.OrganizationId == organizationId);
-                }
-                else
-                {
-                    applications = await _applicationRepository.GetAllAsync();
+                    Console.WriteLine($"Application {app.Id}: Animal={app.Animal?.Name ?? "NULL"}, Applicant={app.Applicant?.Email ?? "NULL"}");
                 }
 
                 var applicationDtos = _mapper.Map<IEnumerable<AdoptionApplicationDto>>(applications);
@@ -67,7 +86,13 @@ namespace PetRescueConnect.API.Controllers
         {
             try
             {
-                var application = await _applicationRepository.GetByIdAsync(id);
+                var application = await _context.AdoptionApplications
+                    .Include(a => a.Animal)
+                    .Include(a => a.Applicant)
+                    .Include(a => a.Organization)
+                    .Include(a => a.Reviewer)
+                    .FirstOrDefaultAsync(a => a.Id == id);
+
                 if (application == null)
                 {
                     return NotFound(new { message = "Adoption application not found" });

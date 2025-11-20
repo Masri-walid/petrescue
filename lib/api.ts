@@ -198,6 +198,7 @@ class ApiClient {
   async createRescueReport(reportData: any, photos?: File[]) {
     // Convert frontend field names to backend field names (camelCase)
     const backendData = {
+      reporterId: reportData.reporterId, // Include the reporter's user ID
       animalType: reportData.animalType,
       urgencyLevel: reportData.urgencyLevel || reportData.urgency,
       animalCondition: reportData.animalCondition || reportData.condition,
@@ -247,6 +248,7 @@ class ApiClient {
       urgency?: string
       organizationId?: string
       reporterId?: string
+      search?: string
       sortBy?: string
       page?: number
       pageSize?: number
@@ -384,8 +386,8 @@ class ApiClient {
   async getAdoptionApplications(
     params: {
       status?: string
-      animalId?: number
-      organizationId?: number
+      animalId?: string
+      organizationId?: string
       sortBy?: string
       page?: number
       pageSize?: number
@@ -398,13 +400,7 @@ class ApiClient {
       }
     })
 
-    return this.request<{
-      applications: any[]
-      totalCount: number
-      page: number
-      pageSize: number
-      totalPages: number
-    }>(`/adoptionapplications?${searchParams.toString()}`)
+    return this.request<any[]>(`/adoptionapplications?${searchParams.toString()}`)
   }
 
   // Image endpoints
@@ -508,6 +504,26 @@ class ApiClient {
         error: error instanceof Error ? error.message : "Upload failed",
       }
     }
+  }
+
+  // Photo similarity ("Find My Pet")
+  async comparePhoto(file: File, threshold?: number) {
+    const formData = new FormData()
+    formData.append("photo", file)
+    if (threshold !== undefined) {
+      formData.append("threshold", threshold.toString())
+    }
+
+    return this.request<{
+      matches: any[]
+      total_compared: number
+      matches_found: number
+      rescue_photos_compared?: number
+      animal_photos_compared?: number
+    }>("/PhotoComparison/compare", {
+      method: "POST",
+      body: formData,
+    })
   }
 
   // Organization registration (public endpoint)

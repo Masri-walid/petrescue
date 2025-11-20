@@ -11,7 +11,12 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 
 // Configure Entity Framework - Use PostgreSQL
 builder.Services.AddDbContext<PetRescueDbContext>(options =>
@@ -19,6 +24,9 @@ builder.Services.AddDbContext<PetRescueDbContext>(options =>
 
 // Configure AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile));
+
+// Configure HttpClient for ML service
+builder.Services.AddHttpClient();
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");

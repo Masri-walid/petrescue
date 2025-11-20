@@ -16,6 +16,7 @@ namespace PetRescueConnect.API.Repositories
             return await _dbSet
                 .Include(o => o.OrganizationHours)
                 .Include(o => o.OrganizationServices)
+                .Include(o => o.OrganizationSpecialties)
                 .Include(o => o.Reviews)
                 .FirstOrDefaultAsync(o => o.Id == organizationId);
         }
@@ -26,6 +27,7 @@ namespace PetRescueConnect.API.Repositories
                 .Where(o => o.OrganizationType.ToLower() == organizationType.ToLower())
                 .Include(o => o.OrganizationHours)
                 .Include(o => o.OrganizationServices)
+                .Include(o => o.OrganizationSpecialties)
                 .ToListAsync();
         }
 
@@ -33,11 +35,14 @@ namespace PetRescueConnect.API.Repositories
         {
             return await _dbSet
                 .Where(o => o.Name.Contains(searchTerm) ||
-                           o.Description!.Contains(searchTerm) ||
+                           (o.Address != null && o.Address.Contains(searchTerm)) ||
                            o.City.Contains(searchTerm) ||
-                           o.State.Contains(searchTerm))
+                           o.State.Contains(searchTerm) ||
+                           (o.ZipCode != null && o.ZipCode.Contains(searchTerm)) ||
+                           (o.Description != null && o.Description.Contains(searchTerm)))
                 .Include(o => o.OrganizationHours)
                 .Include(o => o.OrganizationServices)
+                .Include(o => o.OrganizationSpecialties)
                 .ToListAsync();
         }
 
@@ -48,6 +53,7 @@ namespace PetRescueConnect.API.Repositories
             return await _dbSet
                 .Include(o => o.OrganizationHours)
                 .Include(o => o.OrganizationServices)
+                .Include(o => o.OrganizationSpecialties)
                 .ToListAsync();
         }
     }

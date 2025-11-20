@@ -10,9 +10,22 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Heart, Mail, Lock, User, Building, Stethoscope, Phone, MapPin } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+
+import { Heart, Mail, Lock, User, Building, Stethoscope, Phone, MapPin, Globe, FileText, Users, Clock } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+
+const daysOfWeek = [
+  { label: "Sunday", value: 0 },
+  { label: "Monday", value: 1 },
+  { label: "Tuesday", value: 2 },
+  { label: "Wednesday", value: 3 },
+  { label: "Thursday", value: 4 },
+  { label: "Friday", value: 5 },
+  { label: "Saturday", value: 6 },
+]
+
 
 export default function RegisterPage() {
   const searchParams = useSearchParams()
@@ -32,18 +45,71 @@ export default function RegisterPage() {
     state: "",
     zipCode: "",
   })
+  const [orgFormData, setOrgFormData] = useState({
+    name: "",
+    organizationType: "",
+    description: "",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    phone: "",
+    email: "",
+    website: "",
+    licenseNumber: "",
+    capacity: "",
+  })
+
+  const [orgHours, setOrgHours] = useState(
+    daysOfWeek.map((day) => ({
+      dayOfWeek: day.value,
+      openTime: "",
+      closeTime: "",
+      isClosed: true,
+    }))
+  )
+
+  const [servicesText, setServicesText] = useState("")
+  const [specialtiesText, setSpecialtiesText] = useState("")
+
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [isGettingLocation, setIsGettingLocation] = useState(false)
   const [locationPermission, setLocationPermission] = useState<"granted" | "denied" | "prompt">("prompt")
-  const [coordinates, setCoordinates] = useState<{lat: number, lng: number} | null>(null)
-  const [organizations, setOrganizations] = useState<any[]>([])
-  const [selectedOrganization, setSelectedOrganization] = useState<string>("")
-  const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false)
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null)
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
+
+  const handleOrgInputChange = (field: string, value: string) => {
+    setOrgFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleOrgHourChange = (
+    index: number,
+    field: "openTime" | "closeTime" | "isClosed",
+    value: string | boolean
+  ) => {
+    setOrgHours((prev) => {
+      const next = [...prev]
+      next[index] = {
+        ...next[index],
+        [field]: value,
+      }
+      if (field === "isClosed" && value === true) {
+        next[index].openTime = ""
+        next[index].closeTime = ""
+      }
+      return next
+    })
+  }
+
+
+  const [organizations, setOrganizations] = useState<any[]>([])
+  const [selectedOrganization, setSelectedOrganization] = useState<string>("")
+  const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false)
 
   const getCurrentLocation = async () => {
     if (!navigator.geolocation) {
@@ -117,6 +183,7 @@ export default function RegisterPage() {
     }
   }
 
+
   // Fetch organizations when user type changes to veterinarian or shelter
   useEffect(() => {
     if (userType === "veterinarian") {
@@ -165,13 +232,6 @@ export default function RegisterPage() {
     }
 
     try {
-      // Handle organization registration differently
-      if (userType === "organization") {
-        // Redirect directly to organization registration page
-        router.push("/register/organization")
-        return
-      }
-
       const registrationData = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
@@ -180,7 +240,7 @@ export default function RegisterPage() {
         phone: formData.phone.trim() || undefined,
         role: userType, // Use selected user type
         // Include location data for veterinarian and shelter types
-        ...(userType !== "citizen" && {
+        ...(userType !== "citizen" && userType !== "organization" && {
           address: formData.address.trim() || undefined,
           city: formData.city.trim() || undefined,
           state: formData.state.trim() || undefined,
@@ -219,6 +279,84 @@ export default function RegisterPage() {
 
     setIsSubmitting(false)
   }
+  const handleOrganizationRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setIsSubmitting(true)
+
+    if (
+      !orgFormData.name.trim() ||
+      !orgFormData.organizationType ||
+      !orgFormData.address.trim() ||
+      !orgFormData.city.trim() ||
+      !orgFormData.state.trim() ||
+      !orgFormData.zipCode.trim() ||
+      !orgFormData.phone.trim() ||
+      !orgFormData.email.trim()
+    ) {
+      setError("Please fill in all required fields")
+      setIsSubmitting(false)
+      return
+    }
+
+    try {
+      const organizationHours = orgHours.map((h) => ({
+        dayOfWeek: h.dayOfWeek,
+        openTime: h.isClosed || !h.openTime ? null : h.openTime,
+        closeTime: h.isClosed || !h.closeTime ? null : h.closeTime,
+        isClosed: h.isClosed,
+      }))
+
+      const organizationServices = servicesText
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+        .map((serviceName) => ({ serviceName }))
+
+      const organizationSpecialties = specialtiesText
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+        .map((specialty) => ({ specialty }))
+
+      const organizationData = {
+        name: orgFormData.name.trim(),
+        organizationType: orgFormData.organizationType,
+        description: orgFormData.description.trim() || undefined,
+        address: orgFormData.address.trim(),
+        city: orgFormData.city.trim(),
+        state: orgFormData.state.trim(),
+        zipCode: orgFormData.zipCode.trim(),
+        coordinates: coordinates ? `POINT(${coordinates.lng} ${coordinates.lat})` : "POINT(0 0)",
+        phone: orgFormData.phone.trim(),
+        email: orgFormData.email.trim(),
+        website: orgFormData.website.trim() || undefined,
+        licenseNumber: orgFormData.licenseNumber.trim() || undefined,
+        capacity: orgFormData.capacity ? parseInt(orgFormData.capacity) : undefined,
+        organizationHours,
+        organizationServices,
+        organizationSpecialties,
+      }
+
+      console.log("Creating organization:", organizationData)
+
+      const response = await apiClient.registerOrganization(organizationData)
+
+      if (response.error) {
+        setError(response.error)
+      } else {
+        alert("Organization registered successfully! It will be reviewed and verified by our team.")
+        router.push("/")
+      }
+    } catch (error) {
+      console.error("Organization creation error:", error)
+      setError("Network error. Please check your connection and try again.")
+    }
+
+    setIsSubmitting(false)
+  }
+
+
 
   return (
     <div className="min-h-screen bg-background py-8 px-4">
@@ -247,7 +385,11 @@ export default function RegisterPage() {
             {/* User Type Selection */}
             <div className="mb-6">
               <Label className="text-base font-medium mb-4 block">Account Type</Label>
-              <Tabs value={userType} onValueChange={setUserType} className="w-full">
+              <Tabs
+                value={userType}
+                onValueChange={setUserType}
+                className="w-full"
+              >
                 <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="citizen" className="flex items-center gap-2">
                     <User className="w-4 h-4" />
@@ -317,35 +459,271 @@ export default function RegisterPage() {
                   {/* Help message for organization registration */}
                   <div className="mt-4 p-3 bg-muted/50 border rounded-lg">
                     <p className="text-sm text-muted-foreground">
-                      Don't see your organization? You can{" "}
-                      <Link href="/register/organization" className="text-primary hover:underline font-medium">
-                        register a new organization here
-                      </Link>{" "}
-                      and then return to complete your account registration.
+                      Don't see your organization? Switch to the <span className="font-medium">Organization</span>{" "}
+                      tab above to register a new one, then return here to complete your account registration.
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Organization Registration Info */}
+            {/* Organization Registration Form */}
             {userType === "organization" && (
-              <div className="mb-6">
-                <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <Building className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-blue-900 dark:text-blue-100">Organization Registration</h4>
-                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                        Click "Register Organization" below to proceed directly to the organization registration form where you can create a new shelter, rescue, veterinary clinic, or sanctuary.
+              <form onSubmit={handleOrganizationRegister} className="space-y-6 mb-8">
+                {/* Error Display */}
+                {error && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                )}
+
+                {/* Organization type and name */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="orgType">Organization Type</Label>
+                    <Select
+                      value={orgFormData.organizationType}
+                      onValueChange={(value) => handleOrgInputChange("organizationType", value)}
+                    >
+                      <SelectTrigger id="orgType">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="shelter">Shelter</SelectItem>
+                        <SelectItem value="rescue">Rescue</SelectItem>
+                        <SelectItem value="veterinary_clinic">Veterinary Clinic</SelectItem>
+                        <SelectItem value="sanctuary">Sanctuary</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="orgName">Organization Name</Label>
+                    <Input
+                      id="orgName"
+                      placeholder="Name of your organization"
+                      value={orgFormData.name}
+                      onChange={(e) => handleOrgInputChange("name", e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="orgDescription">Description (optional)</Label>
+                  <Textarea
+                    id="orgDescription"
+                    placeholder="Describe your shelter, rescue, or clinic"
+                    value={orgFormData.description}
+                    onChange={(e) => handleOrgInputChange("description", e.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                {/* Location */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      <Label className="text-base font-medium">Location</Label>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={getCurrentLocation}
+                      disabled={isGettingLocation}
+                      className="flex items-center gap-2"
+                    >
+                      {isGettingLocation ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          Getting Location...
+                        </>
+                      ) : (
+                        <>
+                          <MapPin className="w-4 h-4" />
+                          Use Current Location
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {coordinates && (
+                    <div className="mb-2 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <p className="text-xs text-green-700 dark:text-green-300">
+                        Coordinates: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
                       </p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2 space-y-2">
+                      <Label htmlFor="orgAddress">Address</Label>
+                      <Input
+                        id="orgAddress"
+                        placeholder="Street address"
+                        value={orgFormData.address}
+                        onChange={(e) => handleOrgInputChange("address", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="orgCity">City</Label>
+                      <Input
+                        id="orgCity"
+                        placeholder="City"
+                        value={orgFormData.city}
+                        onChange={(e) => handleOrgInputChange("city", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="orgState">State/Province</Label>
+                      <Input
+                        id="orgState"
+                        placeholder="State or Province"
+                        value={orgFormData.state}
+                        onChange={(e) => handleOrgInputChange("state", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="orgZip">ZIP/Postal Code</Label>
+                      <Input
+                        id="orgZip"
+                        placeholder="ZIP or Postal Code"
+                        value={orgFormData.zipCode}
+                        onChange={(e) => handleOrgInputChange("zipCode", e.target.value)}
+                      />
                     </div>
                   </div>
                 </div>
-              </div>
+
+                {/* Contact */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="orgPhone">Phone</Label>
+                    <Input
+                      id="orgPhone"
+                      placeholder="Primary contact phone"
+                      value={orgFormData.phone}
+                      onChange={(e) => handleOrgInputChange("phone", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="orgEmail">Email</Label>
+                    <Input
+                      id="orgEmail"
+                      type="email"
+                      placeholder="Organization email"
+                      value={orgFormData.email}
+                      onChange={(e) => handleOrgInputChange("email", e.target.value)}
+                    />
+                  </div>
+                  <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="orgWebsite">Website (optional)</Label>
+                    <Input
+                      id="orgWebsite"
+                      placeholder="https://example.org"
+                      value={orgFormData.website}
+                      onChange={(e) => handleOrgInputChange("website", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Hours */}
+                <div className="space-y-3">
+                  <Label className="text-base font-medium flex items-center gap-2">
+                    <Clock className="w-4 h-4" /> Operating Hours
+                  </Label>
+                  <div className="space-y-2">
+                    {daysOfWeek.map((day, index) => (
+                      <div key={day.value} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id={`closed-${day.value}`}
+                            checked={orgHours[index].isClosed}
+                            onCheckedChange={(checked) =>
+                              handleOrgHourChange(index, "isClosed", Boolean(checked))
+                            }
+                          />
+                          <Label htmlFor={`closed-${day.value}`} className="flex-1 flex justify-between text-sm">
+                            <span>{day.label}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {orgHours[index].isClosed ? "Closed" : "Open"}
+                            </span>
+                          </Label>
+                        </div>
+                        <Input
+                          type="time"
+                          value={orgHours[index].openTime}
+                          onChange={(e) => handleOrgHourChange(index, "openTime", e.target.value)}
+                          disabled={orgHours[index].isClosed}
+                        />
+                        <Input
+                          type="time"
+                          value={orgHours[index].closeTime}
+                          onChange={(e) => handleOrgHourChange(index, "closeTime", e.target.value)}
+                          disabled={orgHours[index].isClosed}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Services & Specialties */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="services">Services (comma separated)</Label>
+                    <Textarea
+                      id="services"
+                      placeholder="Adoption, Fostering, Vaccinations..."
+                      value={servicesText}
+                      onChange={(e) => setServicesText(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="specialties">Specialties (comma separated)</Label>
+                    <Textarea
+                      id="specialties"
+                      placeholder="Senior dogs, Medical cases, Behavior rehab..."
+                      value={specialtiesText}
+                      onChange={(e) => setSpecialtiesText(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                </div>
+
+                {/* Additional info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="licenseNumber">License Number (optional)</Label>
+                    <Input
+                      id="licenseNumber"
+                      value={orgFormData.licenseNumber}
+                      onChange={(e) => handleOrgInputChange("licenseNumber", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="capacity">Capacity (optional)</Label>
+                    <Input
+                      id="capacity"
+                      type="number"
+                      min={0}
+                      value={orgFormData.capacity}
+                      onChange={(e) => handleOrgInputChange("capacity", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? "Registering organization..." : "Register Organization"}
+                </Button>
+              </form>
             )}
 
-            <form onSubmit={handleRegister} className="space-y-6">
+            {userType !== "organization" && (
+              <form onSubmit={handleRegister} className="space-y-6">
               {/* Error Display */}
               {error && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
@@ -418,7 +796,7 @@ export default function RegisterPage() {
               </div>
 
               {/* Location Fields - Only for Veterinarian and Shelter */}
-              {userType !== "citizen" && (
+              {userType !== "citizen" && userType !== "organization" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -549,9 +927,10 @@ export default function RegisterPage() {
               </div>
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Redirecting..." : userType === "organization" ? "Register Organization" : "Create Account"}
+                {isSubmitting ? "Creating account..." : "Create Account"}
               </Button>
             </form>
+          )}
 
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PetRescueConnect.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+df1596f87108500fb7903901ede01b4ede625924")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c0741b9a882f7065b5fa12edcfed96a1ebf4e92b")]
 [assembly: System.Reflection.AssemblyProductAttribute("PetRescueConnect.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PetRescueConnect.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

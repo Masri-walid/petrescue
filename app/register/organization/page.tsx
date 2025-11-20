@@ -9,8 +9,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Building, MapPin, Phone, Mail, Globe, FileText, Users } from "lucide-react"
 import Link from "next/link"
+
+const daysOfWeek = [
+  { label: "Sunday", value: 0 },
+  { label: "Monday", value: 1 },
+  { label: "Tuesday", value: 2 },
+  { label: "Wednesday", value: 3 },
+  { label: "Thursday", value: 4 },
+  { label: "Friday", value: 5 },
+  { label: "Saturday", value: 6 },
+]
 
 export default function OrganizationRegisterPage() {
   const router = useRouter()
@@ -34,8 +45,39 @@ export default function OrganizationRegisterPage() {
     capacity: "",
   })
 
+  const [hours, setHours] = useState(
+    daysOfWeek.map((day) => ({
+      dayOfWeek: day.value,
+      openTime: "",
+      closeTime: "",
+      isClosed: true,
+    }))
+  )
+
+  const [servicesText, setServicesText] = useState("")
+  const [specialtiesText, setSpecialtiesText] = useState("")
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleHourChange = (
+    index: number,
+    field: "openTime" | "closeTime" | "isClosed",
+    value: string | boolean
+  ) => {
+    setHours((prev) => {
+      const next = [...prev]
+      next[index] = {
+        ...next[index],
+        [field]: value,
+      }
+      if (field === "isClosed" && value === true) {
+        next[index].openTime = ""
+        next[index].closeTime = ""
+      }
+      return next
+    })
   }
 
   const getCurrentLocation = async () => {
@@ -94,6 +136,25 @@ export default function OrganizationRegisterPage() {
     }
 
     try {
+      const organizationHours = hours.map((h) => ({
+        dayOfWeek: h.dayOfWeek,
+        openTime: h.isClosed || !h.openTime ? null : h.openTime,
+        closeTime: h.isClosed || !h.closeTime ? null : h.closeTime,
+        isClosed: h.isClosed,
+      }))
+
+      const organizationServices = servicesText
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+        .map((serviceName) => ({ serviceName }))
+
+      const organizationSpecialties = specialtiesText
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+        .map((specialty) => ({ specialty }))
+
       const organizationData = {
         name: formData.name.trim(),
         organizationType: formData.organizationType,
@@ -108,6 +169,9 @@ export default function OrganizationRegisterPage() {
         website: formData.website.trim() || undefined,
         licenseNumber: formData.licenseNumber.trim() || undefined,
         capacity: formData.capacity ? parseInt(formData.capacity) : undefined,
+        organizationHours,
+        organizationServices,
+        organizationSpecialties,
       }
 
       console.log("Creating organization:", organizationData)
@@ -337,6 +401,93 @@ export default function OrganizationRegisterPage() {
                       className="pl-10"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Operating Hours */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Operating Hours</Label>
+                <p className="text-xs text-muted-foreground">
+                  Set the hours your organization is open. Mark days as closed when not operating.
+                </p>
+                <div className="space-y-2">
+                  {daysOfWeek.map((day, index) => {
+                    const hour = hours[index]
+                    return (
+                      <div
+                        key={day.value}
+                        className="grid grid-cols-1 md:grid-cols-[1.2fr,1fr,1fr] items-center gap-2 md:gap-3"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id={`day-${day.value}-closed`}
+                            checked={hour.isClosed}
+                            onCheckedChange={(checked) =>
+                              handleHourChange(index, "isClosed", checked === true)
+                            }
+                          />
+                          <Label
+                            htmlFor={`day-${day.value}-closed`}
+                            className="flex-1 text-sm font-medium"
+                          >
+                            {day.label}
+                          </Label>
+                          <span className="text-[11px] text-muted-foreground">
+                            {hour.isClosed ? "Closed" : "Open"}
+                          </span>
+                        </div>
+                        <Input
+                          type="time"
+                          value={hour.openTime}
+                          onChange={(e) =>
+                            handleHourChange(index, "openTime", e.target.value)
+                          }
+                          disabled={hour.isClosed}
+                        />
+                        <Input
+                          type="time"
+                          value={hour.closeTime}
+                          onChange={(e) =>
+                            handleHourChange(index, "closeTime", e.target.value)
+                          }
+                          disabled={hour.isClosed}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Services and Specialties */}
+              <div className="space-y-4">
+                <Label className="text-base font-medium">Services &amp; Specialties</Label>
+
+                <div className="space-y-2">
+                  <Label htmlFor="services">Services Offered</Label>
+                  <Textarea
+                    id="services"
+                    placeholder="Example: Adoption, Fostering, Vaccinations, Microchipping"
+                    value={servicesText}
+                    onChange={(e) => setServicesText(e.target.value)}
+                    rows={2}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Separate services with commas. These help citizens know what you provide.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="specialties">Specialties</Label>
+                  <Textarea
+                    id="specialties"
+                    placeholder="Example: Senior dogs, Feral cats, Exotic birds"
+                    value={specialtiesText}
+                    onChange={(e) => setSpecialtiesText(e.target.value)}
+                    rows={2}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Separate specialties with commas. These map directly to organization_specialties.
+                  </p>
                 </div>
               </div>
 

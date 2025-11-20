@@ -20,6 +20,7 @@ export default function RescueDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [urgencyFilter, setUrgencyFilter] = useState("All")
   const [expandedReports, setExpandedReports] = useState<Set<string>>(new Set())
@@ -32,11 +33,20 @@ export default function RescueDashboard() {
     }
   }, [isAuthenticated, isLoading, router])
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchReports()
     }
-  }, [searchTerm, statusFilter, urgencyFilter, isAuthenticated])
+  }, [debouncedSearchTerm, statusFilter, urgencyFilter, isAuthenticated])
 
   const fetchReports = async () => {
     setLoading(true)
@@ -44,7 +54,7 @@ export default function RescueDashboard() {
 
     try {
       const response = await apiClient.getRescueReports({
-        search: searchTerm || undefined,
+        search: debouncedSearchTerm || undefined,
         status: statusFilter !== "All" ? statusFilter : undefined,
         urgency: urgencyFilter !== "All" ? urgencyFilter : undefined,
         sortBy: "createdAt",
@@ -150,21 +160,10 @@ export default function RescueDashboard() {
         <div className="container mx-auto max-w-6xl">
           {/* Header */}
           <div className="mb-8">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-primary-foreground" />
-                </div>
-                <span className="text-xl font-bold">PetRescue Connect</span>
-              </div>
-            </div>
-            
-            <div>
-              <h1 className="text-3xl font-bold">Rescue Reports Dashboard</h1>
-              <p className="text-muted-foreground">
-                View all rescue reports in the system
-              </p>
-            </div>
+            <h1 className="text-3xl font-bold mb-2">Rescue Reports Dashboard</h1>
+            <p className="text-muted-foreground">
+              View all rescue reports in the system
+            </p>
           </div>
 
           {/* Filters */}
@@ -198,10 +197,11 @@ export default function RescueDashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="All">All Statuses</SelectItem>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Assigned">Assigned</SelectItem>
-                      <SelectItem value="In Progress">In Progress</SelectItem>
-                      <SelectItem value="Resolved">Resolved</SelectItem>
+                      <SelectItem value="reported">Pending</SelectItem>
+                      <SelectItem value="assigned">Assigned</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="rescued">Rescued</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -214,10 +214,10 @@ export default function RescueDashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="All">All Urgencies</SelectItem>
-                      <SelectItem value="Critical">Critical</SelectItem>
-                      <SelectItem value="High">High</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Low">Low</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                      <SelectItem value="moderate">Moderate</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -254,24 +254,37 @@ export default function RescueDashboard() {
                 </Card>
               ) : (
                 <div className="grid gap-6">
-                  {reports.map((report) => (
+                  {reports.map((report) => {
+                    const urgencyColors = {
+                      'critical': 'bg-red-500',
+                      'high': 'bg-orange-500',
+                      'medium': 'bg-yellow-500',
+                      'low': 'bg-green-500'
+                    }
+                    const statusColors = {
+                      'pending': 'bg-blue-500',
+                      'assigned': 'bg-purple-500',
+                      'in_progress': 'bg-orange-500',
+                      'resolved': 'bg-green-500'
+                    }
+
+                    return (
                     <Card key={report.id} className="hover:shadow-lg transition-shadow">
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div>
-                            <CardTitle className="flex items-center gap-2">
-                              <AlertTriangle className="w-5 h-5" />
-                              Rescue Report #{report.id.slice(0, 8)}
+                            <CardTitle className="text-2xl mb-1">
+                              {report.animalType?.charAt(0).toUpperCase() + report.animalType?.slice(1)} Rescue
                             </CardTitle>
                             <CardDescription>
-                              {report.animalType} - {report.breed || 'Unknown breed'}
+                              Report #{report.id.slice(0, 8)} • {report.breed || 'Unknown breed'}
                             </CardDescription>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant={getUrgencyColor(report.urgencyLevel) as any}>
+                            <Badge className={`${urgencyColors[report.urgencyLevel?.toLowerCase()] || 'bg-gray-500'} text-white`}>
                               {report.urgencyLevel}
                             </Badge>
-                            <Badge variant={getStatusColor(report.status) as any}>
+                            <Badge className={`${statusColors[report.status?.toLowerCase()] || 'bg-gray-500'} text-white`}>
                               {report.status}
                             </Badge>
                           </div>
@@ -450,7 +463,8 @@ export default function RescueDashboard() {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </>
