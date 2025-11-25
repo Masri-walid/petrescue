@@ -37,6 +37,9 @@ export function NavigationHeader() {
             <Link href="/shelters" className="text-muted-foreground hover:text-foreground transition-colors">
               Shelters
             </Link>
+            <Link href="/ask-ia" className="text-muted-foreground hover:text-foreground transition-colors">
+              Ask IA
+            </Link>
 
             {/* Role-based navigation */}
             {user && (user.role === 'veterinarian' || user.role === 'shelter') ? (
