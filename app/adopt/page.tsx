@@ -12,6 +12,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { apiClient } from "@/lib/api"
 import { NavigationHeader } from "@/components/navigation-header"
+import { getProfileImageUrl } from "@/lib/profile-image-utils"
 
 export default function AdoptPage() {
   const { user, isAuthenticated } = useAuth()
@@ -406,7 +407,7 @@ function PetCard({
 
       <div className="aspect-[4/3] relative overflow-hidden">
         <Image
-          src={primaryPhoto?.photoUrl || "/a-cute-pet.png"}
+          src={getProfileImageUrl(primaryPhoto?.photoUrl) || "/placeholder.svg"}
           alt={pet.name}
           fill
           className="object-cover hover:scale-105 transition-transform duration-300"

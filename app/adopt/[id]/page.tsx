@@ -11,6 +11,7 @@ import Image from "next/image"
 import { useParams } from "next/navigation"
 import { apiClient } from "@/lib/api"
 import AdoptionApplicationForm from "@/components/adoption-application-form"
+import { getProfileImageUrl } from "@/lib/profile-image-utils"
 
 
 
@@ -106,7 +107,7 @@ export default function PetDetailPage() {
             <Card className="overflow-hidden">
               <div className="aspect-[4/3] relative">
                 <Image
-                  src={pet.animalPhotos?.[currentPhotoIndex]?.photoUrl || "/a-cute-pet.png"}
+                  src={getProfileImageUrl(pet.animalPhotos?.[currentPhotoIndex]?.photoUrl) || "/placeholder.svg"}
                   alt={`${pet.name} photo ${currentPhotoIndex + 1}`}
                   fill
                   className="object-cover"
@@ -136,7 +137,7 @@ export default function PetDetailPage() {
                         }`}
                       >
                         <Image
-                          src={photo.photoUrl || "/a-cute-pet.png"}
+                          src={getProfileImageUrl(photo.photoUrl) || "/placeholder.svg"}
                           alt={`${pet.name} thumbnail ${index + 1}`}
                           width={80}
                           height={80}

@@ -26,7 +26,6 @@ export default function SheltersPage() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("")
   const [typeFilter, setTypeFilter] = useState("All Types")
   const [sortBy, setSortBy] = useState("name")
-  const [organizations, setOrganizations] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -49,23 +48,10 @@ export default function SheltersPage() {
     setError(null)
 
     try {
-      // Fetch organizations
-      const orgResponse = await apiClient.getOrganizations({
-        search: debouncedSearchTerm || undefined,
-        type: typeFilter !== "All Types" ? typeFilter : undefined,
-        sortBy: sortBy,
-      })
-
-      // Fetch users who are vets or shelters
+      // Fetch users who are vets or shelters (NOT organizations)
       const usersResponse = await apiClient.request('/auth/users/by-type', {
         method: 'GET',
       })
-
-      if (orgResponse.error) {
-        setError(orgResponse.error)
-      } else if (orgResponse.data) {
-        setOrganizations(orgResponse.data)
-      }
 
       if (usersResponse.data) {
         // The backend now filters to only vets and shelters, so no need to filter again
@@ -112,9 +98,6 @@ export default function SheltersPage() {
     setLoading(false)
   }
 
-  const featuredOrganizations = organizations.filter((org) => org.featured)
-  const regularOrganizations = organizations.filter((org) => !org.featured)
-
   // Convert users to organization-like format for display
   const userOrganizations = users.map((user) => {
     // Use the user's profile picture if available, otherwise fall back to their primary or first gallery photo
@@ -146,7 +129,7 @@ export default function SheltersPage() {
     }
   })
 
-  if (loading && organizations.length === 0) {
+  if (loading && users.length === 0) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -161,7 +144,7 @@ export default function SheltersPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-500 mb-4">Error loading organizations: {error}</p>
+          <p className="text-red-500 mb-4">Error loading shelters and rescues: {error}</p>
           <Button onClick={fetchData}>Try Again</Button>
         </div>
       </div>
@@ -219,36 +202,25 @@ export default function SheltersPage() {
 
           <div className="flex items-center justify-between">
             <p className="text-muted-foreground">
-              Found {organizations.length} shelters and rescues
+              Found {users.length} shelters and rescues
             </p>
           </div>
         </div>
 
         <div className="space-y-8">
-          {featuredOrganizations.length > 0 && (
-            <div>
-              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                <Star className="w-6 h-6 text-yellow-500" />
-                Featured Shelters
-              </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {featuredOrganizations.map((organization) => (
-                  <ShelterCard key={organization.id} shelter={organization} featured />
-                ))}
-              </div>
-            </div>
-          )}
-
           <div>
             <h2 className="text-2xl font-bold mb-4">All Shelters & Rescues</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {regularOrganizations.map((organization) => (
-                <ShelterCard key={organization.id} shelter={organization} />
-              ))}
-              {userOrganizations.map((userOrg) => (
-                <ShelterCard key={`user-${userOrg.id}`} shelter={userOrg} />
-              ))}
-            </div>
+            {userOrganizations.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No shelters or rescues found matching your criteria.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {userOrganizations.map((userOrg) => (
+                  <ShelterCard key={`user-${userOrg.id}`} shelter={userOrg} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

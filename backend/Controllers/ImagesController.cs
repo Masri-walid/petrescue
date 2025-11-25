@@ -303,6 +303,10 @@ namespace PetRescueConnect.API.Controllers
                 _context.AnimalPhotos.Add(animalPhoto);
                 await _context.SaveChangesAsync();
 
+                // Set PhotoUrl after saving to get the generated ID
+                animalPhoto.PhotoUrl = $"/api/images/animal-photo/{animalPhoto.Id}";
+                await _context.SaveChangesAsync();
+
                 return Ok(new
                 {
                     success = true,
@@ -342,6 +346,44 @@ namespace PetRescueConnect.API.Controllers
             {
                 _logger.LogError(ex, "Error retrieving animal photo {PhotoId}", photoId);
                 return StatusCode(500, new { message = "An error occurred while retrieving the photo" });
+            }
+        }
+
+        [HttpDelete("animal-photo/{photoId}")]
+        [Authorize]
+        public async Task<ActionResult> DeleteAnimalPhoto(Guid photoId)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userRole = User.FindFirst("user_type")?.Value;
+
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+                {
+                    return Unauthorized(new { message = "Invalid user token" });
+                }
+
+                // Only allow shelters and vets to delete animal photos
+                if (userRole != "shelter" && userRole != "veterinarian")
+                {
+                    return Forbid("Only shelters and veterinarians can delete animal photos");
+                }
+
+                var photo = await _context.AnimalPhotos.FindAsync(photoId);
+                if (photo == null)
+                {
+                    return NotFound(new { message = "Photo not found" });
+                }
+
+                _context.AnimalPhotos.Remove(photo);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting animal photo {PhotoId}", photoId);
+                return StatusCode(500, new { message = "An error occurred while deleting the photo", error = ex.Message });
             }
         }
     }

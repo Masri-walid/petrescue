@@ -7,16 +7,51 @@ import { getProfileImageUrl } from '@/lib/profile-image-utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Heart, PlusCircle, ArrowLeft, Eye, Edit, Trash2 } from 'lucide-react'
+import { Heart, PlusCircle, ArrowLeft, Eye, Edit, Trash2, Upload, X } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { NavigationHeader } from '@/components/navigation-header'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default function MyAnimalsPage() {
   const { user, isAuthenticated } = useAuth()
   const [animals, setAnimals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [editingAnimal, setEditingAnimal] = useState<any | null>(null)
+  const [deletingAnimalId, setDeletingAnimalId] = useState<string | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [newPhotos, setNewPhotos] = useState<File[]>([])
+  const [deletedPhotoIds, setDeletedPhotoIds] = useState<string[]>([])
 
   // Fetch animals for the current user/organization
   useEffect(() => {
@@ -94,6 +129,124 @@ export default function MyAnimalsPage() {
         return 'bg-red-100 text-red-800 border-red-200'
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200'
+    }
+  }
+
+  const handleEditClick = (animal: any) => {
+    setEditingAnimal({ ...animal })
+    setNewPhotos([])
+    setDeletedPhotoIds([])
+    setIsEditDialogOpen(true)
+  }
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    setNewPhotos(prev => [...prev, ...files])
+  }
+
+  const handleRemoveNewPhoto = (index: number) => {
+    setNewPhotos(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleDeleteExistingPhoto = (photoId: string) => {
+    setDeletedPhotoIds(prev => [...prev, photoId])
+  }
+
+  const handleDeleteClick = (animalId: string) => {
+    setDeletingAnimalId(animalId)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleEditSave = async () => {
+    if (!editingAnimal) return
+
+    try {
+      setIsSaving(true)
+
+      // First, update the animal information
+      const response = await apiClient.updateAnimal(editingAnimal.id, {
+        name: editingAnimal.name,
+        breed: editingAnimal.breed,
+        ageCategory: editingAnimal.ageCategory,
+        estimatedAge: editingAnimal.estimatedAge,
+        gender: editingAnimal.gender,
+        size: editingAnimal.size,
+        color: editingAnimal.color,
+        weight: editingAnimal.weight,
+        description: editingAnimal.description,
+        status: editingAnimal.status,
+        adoptionFee: editingAnimal.adoptionFee,
+        isFeatured: editingAnimal.isFeatured,
+        specialNeeds: editingAnimal.specialNeeds,
+        microchipId: editingAnimal.microchipId,
+        isSpayedNeutered: editingAnimal.isSpayedNeutered,
+        vaccinationStatus: editingAnimal.vaccinationStatus,
+      })
+
+      if (response.error) {
+        setError(response.error)
+        setIsSaving(false)
+        return
+      }
+
+      // Delete photos marked for deletion
+      for (const photoId of deletedPhotoIds) {
+        await apiClient.deleteAnimalPhoto(photoId)
+      }
+
+      // Upload new photos
+      for (let i = 0; i < newPhotos.length; i++) {
+        const photo = newPhotos[i]
+        const existingPhotosCount = (editingAnimal.animalPhotos?.length || 0) - deletedPhotoIds.length
+        await apiClient.uploadAnimalPhoto(
+          photo,
+          editingAnimal.id,
+          photo.name,
+          existingPhotosCount === 0 && i === 0, // Set first photo as primary if no existing photos
+          existingPhotosCount + i
+        )
+      }
+
+      // Refresh the animal data to get updated photos
+      const updatedAnimalResponse = await apiClient.getAnimal(editingAnimal.id)
+      if (updatedAnimalResponse.data) {
+        setAnimals(animals.map(a => a.id === editingAnimal.id ? updatedAnimalResponse.data : a))
+      } else {
+        setAnimals(animals.map(a => a.id === editingAnimal.id ? response.data : a))
+      }
+
+      setIsEditDialogOpen(false)
+      setEditingAnimal(null)
+      setNewPhotos([])
+      setDeletedPhotoIds([])
+    } catch (err) {
+      console.error('Error updating animal:', err)
+      setError('Failed to update animal')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingAnimalId) return
+
+    try {
+      setIsSaving(true)
+      const response = await apiClient.deleteAnimal(deletingAnimalId)
+
+      if (response.error) {
+        setError(response.error)
+      } else {
+        // Remove the animal from the list
+        setAnimals(animals.filter(a => a.id !== deletingAnimalId))
+        setIsDeleteDialogOpen(false)
+        setDeletingAnimalId(null)
+      }
+    } catch (err) {
+      console.error('Error deleting animal:', err)
+      setError('Failed to delete animal')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -178,8 +331,8 @@ export default function MyAnimalsPage() {
                 rawPhotoUrl
                   ? (rawPhotoUrl.startsWith('data:')
                       ? rawPhotoUrl
-                      : (getProfileImageUrl(rawPhotoUrl) || "/a-cute-pet.png"))
-                  : "/a-cute-pet.png"
+                      : (getProfileImageUrl(rawPhotoUrl) || "/placeholder.svg"))
+                  : "/placeholder.svg"
 
               return (
                 <Card key={animal.id} className="overflow-hidden">
@@ -207,17 +360,35 @@ export default function MyAnimalsPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-3">
                       <div className="text-sm text-muted-foreground">
                         {animal.species} • {animal.gender}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/adopt/${animal.id}`}>
-                            <Eye className="w-4 h-4" />
-                          </Link>
-                        </Button>
-                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" className="flex-1" asChild>
+                        <Link href={`/adopt/${animal.id}`}>
+                          <Eye className="w-4 h-4 mr-1" />
+                          View
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleEditClick(animal)}
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeleteClick(animal.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -269,6 +440,291 @@ export default function MyAnimalsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Edit Animal Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Animal</DialogTitle>
+            <DialogDescription>
+              Update the information for {editingAnimal?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingAnimal && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={editingAnimal.name || ''}
+                    onChange={(e) => setEditingAnimal({ ...editingAnimal, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="breed">Breed</Label>
+                  <Input
+                    id="breed"
+                    value={editingAnimal.breed || ''}
+                    onChange={(e) => setEditingAnimal({ ...editingAnimal, breed: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ageCategory">Age Category</Label>
+                  <Select
+                    value={editingAnimal.ageCategory || ''}
+                    onValueChange={(value) => setEditingAnimal({ ...editingAnimal, ageCategory: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select age category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Baby">Baby</SelectItem>
+                      <SelectItem value="Young">Young</SelectItem>
+                      <SelectItem value="Adult">Adult</SelectItem>
+                      <SelectItem value="Senior">Senior</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select
+                    value={editingAnimal.gender || ''}
+                    onValueChange={(value) => setEditingAnimal({ ...editingAnimal, gender: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Unknown">Unknown</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="size">Size</Label>
+                  <Select
+                    value={editingAnimal.size || ''}
+                    onValueChange={(value) => setEditingAnimal({ ...editingAnimal, size: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Small">Small</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="Large">Large</SelectItem>
+                      <SelectItem value="Extra Large">Extra Large</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="color">Color</Label>
+                  <Input
+                    id="color"
+                    value={editingAnimal.color || ''}
+                    onChange={(e) => setEditingAnimal({ ...editingAnimal, color: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="weight">Weight (lbs)</Label>
+                  <Input
+                    id="weight"
+                    type="number"
+                    value={editingAnimal.weight || ''}
+                    onChange={(e) => setEditingAnimal({ ...editingAnimal, weight: parseFloat(e.target.value) || null })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="adoptionFee">Adoption Fee ($)</Label>
+                  <Input
+                    id="adoptionFee"
+                    type="number"
+                    value={editingAnimal.adoptionFee || ''}
+                    onChange={(e) => setEditingAnimal({ ...editingAnimal, adoptionFee: parseFloat(e.target.value) || null })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={editingAnimal.status || 'Available'}
+                  onValueChange={(value) => setEditingAnimal({ ...editingAnimal, status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Available">Available</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Adopted">Adopted</SelectItem>
+                    <SelectItem value="Unavailable">Unavailable</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={editingAnimal.description || ''}
+                  onChange={(e) => setEditingAnimal({ ...editingAnimal, description: e.target.value })}
+                  rows={4}
+                />
+              </div>
+
+              {/* Photo Management */}
+              <div className="space-y-4 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <Label>Photos</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById('photo-upload')?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Add Photos
+                  </Button>
+                  <input
+                    id="photo-upload"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                </div>
+
+                {/* Existing Photos */}
+                {editingAnimal.animalPhotos && editingAnimal.animalPhotos.length > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Current Photos</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {editingAnimal.animalPhotos
+                        .filter((photo: any) => !deletedPhotoIds.includes(photo.id))
+                        .map((photo: any) => {
+                          const rawPhotoUrl = photo.photoUrl || photo.filePath
+                          const photoUrl = rawPhotoUrl?.startsWith('data:')
+                            ? rawPhotoUrl
+                            : (getProfileImageUrl(rawPhotoUrl) || getProfileImageUrl(`/api/images/animal-photo/${photo.id}`))
+
+                          return (
+                            <div key={photo.id} className="relative group">
+                              <div className="aspect-square bg-muted rounded-lg overflow-hidden">
+                                <Image
+                                  src={photoUrl || '/placeholder.svg'}
+                                  alt={photo.caption || 'Animal photo'}
+                                  width={100}
+                                  height={100}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleDeleteExistingPhoto(photo.id)}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                              {photo.isPrimary && (
+                                <Badge className="absolute bottom-1 left-1 text-xs">Primary</Badge>
+                              )}
+                            </div>
+                          )
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {/* New Photos to Upload */}
+                {newPhotos.length > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">New Photos to Upload</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {newPhotos.map((photo, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square bg-muted rounded-lg overflow-hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={URL.createObjectURL(photo)}
+                              alt={`New photo ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleRemoveNewPhoto(index)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                          <Badge className="absolute bottom-1 left-1 text-xs bg-green-500">New</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false)
+                setEditingAnimal(null)
+              }}
+              disabled={isSaving}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleEditSave} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the animal
+              from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isSaving}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isSaving ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

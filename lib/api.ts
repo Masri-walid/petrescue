@@ -169,6 +169,19 @@ class ApiClient {
     })
   }
 
+  async updateAnimal(id: string, animalData: any) {
+    return this.request<any>(`/animals/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(animalData),
+    })
+  }
+
+  async deleteAnimal(id: string) {
+    return this.request<any>(`/animals/${id}`, {
+      method: "DELETE",
+    })
+  }
+
   // Organizations endpoints
   async getOrganizations(
     params: {
@@ -504,6 +517,12 @@ class ApiClient {
         error: error instanceof Error ? error.message : "Upload failed",
       }
     }
+  }
+
+  async deleteAnimalPhoto(photoId: string) {
+    return this.request<any>(`/images/animal-photo/${photoId}`, {
+      method: "DELETE",
+    })
   }
 
   // Photo similarity ("Find My Pet")
