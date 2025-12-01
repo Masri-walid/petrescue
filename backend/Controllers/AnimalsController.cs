@@ -209,6 +209,42 @@ namespace PetRescueConnect.API.Controllers
                 animal.UpdatedAt = DateTime.UtcNow;
 
                 var createdAnimal = await _animalRepository.AddAsync(animal);
+
+                // Calculate adoption likelihood automatically
+                try
+                {
+                    using var httpClient = new HttpClient();
+                    httpClient.Timeout = TimeSpan.FromSeconds(5);
+                    var predictionData = new
+                    {
+                        id = createdAnimal.Id.ToString(),
+                        species = createdAnimal.Species,
+                        breed = createdAnimal.Breed,
+                        estimated_age = createdAnimal.EstimatedAge,
+                        estimatedAge = createdAnimal.EstimatedAge,
+                        gender = createdAnimal.Gender,
+                        color = createdAnimal.Color
+                    };
+                    var response = await httpClient.PostAsJsonAsync(
+                        "http://localhost:5002/api/adoption-likelihood/predict",
+                        predictionData
+                    );
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var result = await response.Content.ReadFromJsonAsync<PredictionResult>();
+                        if (result != null)
+                        {
+                            createdAnimal.AdoptionLikelihood = (decimal)result.adoption_likelihood;
+                            await _animalRepository.UpdateAsync(createdAnimal);
+                        }
+                    }
+                }
+                catch (Exception predEx)
+                {
+                    // Log but don't fail - prediction is optional
+                    Console.WriteLine($"Adoption prediction failed (non-critical): {predEx.Message}");
+                }
+
                 var animalDto = _mapper.Map<AnimalDto>(createdAnimal);
                 return CreatedAtAction(nameof(GetAnimal), new { id = animalDto.Id }, animalDto);
             }
@@ -306,6 +342,41 @@ namespace PetRescueConnect.API.Controllers
                     await _context.SaveChangesAsync();
                 }
 
+                // Calculate adoption likelihood automatically
+                try
+                {
+                    using var httpClient = new HttpClient();
+                    httpClient.Timeout = TimeSpan.FromSeconds(5);
+                    var predictionData = new
+                    {
+                        id = createdAnimal.Id.ToString(),
+                        species = createdAnimal.Species,
+                        breed = createdAnimal.Breed,
+                        estimated_age = createdAnimal.EstimatedAge,
+                        estimatedAge = createdAnimal.EstimatedAge,
+                        gender = createdAnimal.Gender,
+                        color = createdAnimal.Color
+                    };
+                    var response = await httpClient.PostAsJsonAsync(
+                        "http://localhost:5002/api/adoption-likelihood/predict",
+                        predictionData
+                    );
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var result = await response.Content.ReadFromJsonAsync<PredictionResult>();
+                        if (result != null)
+                        {
+                            createdAnimal.AdoptionLikelihood = (decimal)result.adoption_likelihood;
+                            await _animalRepository.UpdateAsync(createdAnimal);
+                        }
+                    }
+                }
+                catch (Exception predEx)
+                {
+                    // Log but don't fail - prediction is optional
+                    Console.WriteLine($"Adoption prediction failed (non-critical): {predEx.Message}");
+                }
+
                 var animalDto = _mapper.Map<AnimalDto>(createdAnimal);
                 return CreatedAtAction(nameof(GetAnimal), new { id = animalDto.Id }, animalDto);
             }
@@ -359,6 +430,100 @@ namespace PetRescueConnect.API.Controllers
             {
                 return StatusCode(500, new { message = "An error occurred", error = ex.Message });
             }
+        }
+
+        [HttpPost("{id}/update-adoption-likelihood")]
+        [Authorize]
+        public async Task<ActionResult<AnimalDto>> UpdateAdoptionLikelihood(Guid id)
+        {
+            try
+            {
+                var animal = await _animalRepository.GetAnimalWithPhotosAsync(id);
+                if (animal == null)
+                {
+                    return NotFound(new { message = "Animal not found" });
+                }
+
+                // Call the prediction service
+                using var httpClient = new HttpClient();
+                var animalData = new
+                {
+                    id = animal.Id.ToString(),
+                    species = animal.Species,
+                    breed = animal.Breed,
+                    estimated_age = animal.EstimatedAge,
+                    gender = animal.Gender,
+                    size = animal.Size,
+                    color = animal.Color,
+                    is_spayed_neutered = animal.IsSpayedNeutered,
+                    vaccination_status = animal.VaccinationStatus,
+                    adoption_fee = animal.AdoptionFee
+                };
+
+                var response = await httpClient.PostAsJsonAsync(
+                    "http://localhost:5002/api/adoption-likelihood/predict",
+                    animalData
+                );
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<PredictionResult>();
+                    if (result != null)
+                    {
+                        animal.AdoptionLikelihood = (decimal)result.adoption_likelihood;
+                        animal.UpdatedAt = DateTime.UtcNow;
+                        await _animalRepository.UpdateAsync(animal);
+                    }
+                }
+
+                var animalDto = _mapper.Map<AnimalDto>(animal);
+                return Ok(animalDto);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred", error = ex.Message });
+            }
+        }
+
+        [HttpPost("update-all-adoption-likelihood")]
+        [Authorize]
+        public async Task<ActionResult> UpdateAllAdoptionLikelihoods()
+        {
+            try
+            {
+                // Call the batch update endpoint in the prediction service
+                using var httpClient = new HttpClient();
+                var response = await httpClient.PostAsync(
+                    "http://localhost:5002/api/adoption-likelihood/update-all",
+                    null
+                );
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<BatchUpdateResult>();
+                    return Ok(new { message = $"Updated {result?.updated ?? 0} animals" });
+                }
+
+                return StatusCode(500, new { message = "Failed to update adoption likelihoods" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred", error = ex.Message });
+            }
+        }
+
+        // Helper classes for deserialization
+        private class PredictionResult
+        {
+            public double adoption_likelihood { get; set; }
+            public string? animal_id { get; set; }
+        }
+
+        private class BatchUpdateResult
+        {
+            public string? message { get; set; }
+            public int updated { get; set; }
+            public int total { get; set; }
         }
     }
 }

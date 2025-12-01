@@ -1,0 +1,201 @@
+gender,color,breed,is_adopted,adoption_date,adopter_id,adopter_name,adopter_age,adopter_city,adopter_previous_pets,adopted
+female,White,Yorkshire Terrier,True,2025-03-11,A0001,Megan Rogers,56,Mcgeestad,1,1
+female,Golden,Tonkinese,True,2024-02-10,A0002,Jonathan Hawkins,18,Geneshire,2,1
+male,Spotted,Amazon Parrot,False,2023-10-17,A0001,Donald Adams,-1,Christopherview,0,0
+female,White,German Shepherd,True,2024-08-12,A0004,Natalie Rivera,51,North Richard,3,1
+female,Spotted,Dutch,False,2024-02-26,A0001,Donald Adams,-1,Christopherview,0,0
+male,Spotted,Labrador Retriever,False,2025-06-17,A0001,Donald Adams,-1,Christopherview,0,0
+female,Mixed,Siberian Husky,False,2025-04-21,A0001,Donald Adams,-1,Christopherview,0,0
+female,Spotted,Campbell's Dwarf,True,2024-08-30,A0008,Joyce Garza,74,Port Sarachester,0,1
+female,Mixed,Abyssinian,False,2023-09-25,A0001,Donald Adams,-1,Christopherview,0,0
+male,Brown,French Bulldog,False,2025-02-03,A0001,Donald Adams,-1,Christopherview,0,0
+male,Grey,Chinese,False,2025-01-11,A0001,Donald Adams,-1,Christopherview,0,0
+female,White,Bengal,False,2024-06-15,A0001,Donald Adams,-1,Christopherview,0,0
+male,Golden,Bengal,False,2025-05-25,A0001,Donald Adams,-1,Christopherview,0,0
+female,Black,Dutch,True,2024-02-13,A0014,Philip Ibarra,63,New Rachelview,2,1
+male,Mixed,Netherland Dwarf,False,2024-07-03,A0001,Donald Adams,-1,Christopherview,0,0
+female,Black,Silver Marten,True,2024-08-15,A0016,Emily Fernandez,42,Lake Jonathan,0,1
+male,Brown,Roborovski,True,2024-06-02,A0017,Mr. Evan Smith,24,Port Timothy,3,1
+female,Golden,Maine Coon,True,2024-06-29,A0018,Jeffery Zamora,49,Marychester,3,1
+male,White,Conure,True,2024-10-10,A0019,Kathy Cox,62,Joyton,2,1
+female,Grey,Syrian,True,2024-11-13,A0020,Jody Gutierrez,72,Camposton,0,1
+female,Mixed,Persian,False,2025-05-25,A0001,Donald Adams,-1,Christopherview,0,0
+male,Grey,Norwegian Forest Cat,True,2024-03-31,A0022,Daniel Nelson,42,West Johnfurt,0,1
+female,Brown,Winter White,False,2024-12-11,A0001,Donald Adams,-1,Christopherview,0,0
+male,Golden,Maine Coon,True,2023-08-25,A0024,Rodney White,26,Millerside,4,1
+male,Black,Canary,True,2024-04-03,A0025,William Wiley,46,Lake Melvinmouth,0,1
+male,Spotted,Dutch,False,2024-07-06,A0001,Donald Adams,-1,Christopherview,0,0
+female,Golden,Oriental Shorthair,True,2025-06-18,A0027,William White,28,Andreaview,5,1
+female,Grey,Dwarf Campbell,False,2024-06-01,A0001,Donald Adams,-1,Christopherview,0,0
+female,White,Maine Coon,False,2025-05-25,A0001,Donald Adams,-1,Christopherview,0,0
+male,Golden,European Hamster,False,2024-03-23,A0001,Donald Adams,-1,Christopherview,0,0
+male,Spotted,Syrian,True,2024-11-27,A0031,Jesse Castro,63,Ramoston,0,1
+male,Spotted,Sphynx,True,2024-05-06,A0032,Steven Acevedo,33,Nathanport,5,1
+male,White,Boxer,True,2025-05-15,A0033,Theresa Shaw,57,East Kellyburgh,3,1
+female,White,Yorkshire Terrier,True,2023-12-11,A0034,Alyssa Brown,45,Stevenville,0,1
+female,Spotted,Russian Dwarf,True,2024-02-04,A0035,Bruce Holland,35,Browntown,5,1
+male,Brown,Oriental Shorthair,False,2024-07-30,A0001,Donald Adams,-1,Christopherview,0,0
+male,Golden,Amazon Parrot,False,2024-12-10,A0001,Donald Adams,-1,Christopherview,0,0
+female,Spotted,Parakeet,True,2024-04-15,A0038,Scott Rivera,33,Port Tiffanyland,5,1
+male,Grey,Roborovski,False,2025-04-15,A0001,Donald Adams,-1,Christopherview,0,0
+male,White,Great Dane,False,2025-04-18,A0001,Donald Adams,-1,Christopherview,0,0
+female,Spotted,Siberian Husky,False,2024-03-13,A0001,Donald Adams,-1,Christopherview,0,0
+female,Spotted,Korean,True,2024-05-18,A0042,Katherine Montgomery,56,Hughesburgh,0,1
+female,White,Siberian Husky,True,2025-01-24,A0043,Brian Johnston,71,Kennedyfurt,5,1
+female,Brown,Conure,False,2024-06-20,A0001,Donald Adams,-1,Christopherview,0,0
+male,Brown,Syrian,False,2024-12-01,A0001,Donald Adams,-1,Christopherview,0,0
+male,Black,Russian Blue,True,2024-05-20,A0046,Lindsay Preston,60,Lake John,4,1
+male,Grey,Macaw,True,2024-03-28,A0047,Joan Smith,27,Pughbury,4,1
+female,Mixed,Beagle,True,2025-01-31,A0048,Jessica Burgess,35,Lake Christopherfurt,5,1
+male,Brown,German Shepherd,False,2025-04-21,A0001,Donald Adams,-1,Christopherview,0,0
+male,White,Russian Dwarf,False,2024-12-01,A0001,Donald Adams,-1,Christopherview,0,0
+female,Golden,Persian,True,2025-01-15,A0051,Jacob West,22,Andersonton,3,1
+female,Brown,Chinese,False,2023-08-22,A0001,Donald Adams,-1,Christopherview,0,0
+female,Spotted,African Grey Parrot,True,2025-05-29,A0053,Jacob Copeland,63,East Amandaside,2,1
+female,Black,Winter White,True,2024-12-01,A0054,David Bond,75,Port Christianberg,2,1
+female,Spotted,Shih Tzu,True,2025-05-19,A0055,Madeline Smith,24,Williamville,3,1
+female,Grey,European Hamster,True,2023-08-10,A0056,Debra Santiago,19,Washingtonshire,2,1
+male,Brown,Macaw,True,2025-06-10,A0057,Sabrina Lawson,46,Pattonville,4,1
+male,Black,Mini Rex,True,2023-12-07,A0058,Richard Wallace,28,North Philipchester,5,1
+male,White,Dwarf Campbell,False,2025-05-31,A0001,Donald Adams,-1,Christopherview,0,0
+male,Spotted,Korean,True,2024-01-30,A0060,James Wallace,66,East Kenneth,3,1
+male,Spotted,Conure,True,2025-06-18,A0061,Angela Harmon,64,South Brent,3,1
+male,Spotted,Cockatoo,True,2024-09-21,A0062,Tammy Mason,41,New James,1,1
+male,Brown,Korean,True,2024-04-28,A0063,Brad Carney,73,North Nicole,3,1
+female,Golden,Boxer,True,2025-01-15,A0064,Mr. David Brock,60,Ashleyborough,2,1
+male,Golden,Cockatiel,True,2025-06-18,A0065,Marie Sanchez,64,Hallburgh,3,1
+female,Black,British Shorthair,True,2024-08-25,A0066,Randall Pittman,36,North Joanne,4,1
+female,Black,Amazon Parrot,True,2024-10-26,A0067,Phillip Bailey,55,Lake Charles,0,1
+female,Brown,Conure,False,2025-05-06,A0001,Donald Adams,-1,Christopherview,0,0
+female,White,Bengal,True,2024-04-29,A0069,Lindsey Walker,22,South Nicole,3,1
+female,Golden,Macaw,True,2025-01-11,A0070,Laura Craig,53,Lake Lisatown,3,1
+male,Mixed,Budgerigar,True,2025-06-18,A0071,Mrs. Amy Thompson,73,Samanthaview,4,1
+female,White,Syrian,True,2025-06-18,A0072,Bonnie Macdonald,56,Jenniferbury,0,1
+female,Mixed,Polish,False,2025-05-22,A0001,Donald Adams,-1,Christopherview,0,0
+female,White,Devon Rex,True,2025-06-18,A0074,Daniel Galvan,29,West Maryburgh,1,1
+male,Grey,Siamese,False,2024-05-02,A0001,Donald Adams,-1,Christopherview,0,0
+male,Golden,Campbell's Dwarf,False,2023-10-31,A0001,Donald Adams,-1,Christopherview,0,0
+female,White,Campbell's Dwarf,True,2025-04-03,A0077,Aaron Tucker,62,East William,1,1
+female,Golden,Bengal,False,2024-09-23,A0001,Donald Adams,-1,Christopherview,0,0
+female,Black,Devon Rex,False,2025-02-06,A0001,Donald Adams,-1,Christopherview,0,0
+female,Golden,Parakeet,True,2024-07-01,A0080,Candice Gutierrez,48,Cookburgh,3,1
+female,Grey,Conure,True,2024-02-29,A0081,Dennis Anderson,75,New Brittanystad,3,1
+female,Brown,Golden Retriever,True,2023-10-21,A0082,Robert Hooper,46,Lake Ryanmouth,3,1
+male,White,Devon Rex,True,2023-10-05,A0083,Mrs. Jennifer Espinoza MD,42,North Jennifer,5,1
+female,Mixed,Syrian,True,2024-07-28,A0084,Ronald Reed,27,South Sherry,1,1
+male,Mixed,Dachshund,True,2025-03-12,A0085,Mary Campbell,65,Port Amandafort,5,1
+male,White,Yorkshire Terrier,True,2024-02-12,A0086,Marissa Tapia,27,East Johnland,4,1
+female,Mixed,Siamese,False,2025-02-17,A0001,Donald Adams,-1,Christopherview,0,0
+male,Brown,Budgerigar,True,2025-03-30,A0088,Cody Knapp,50,New Gregoryland,5,1
+female,Mixed,Norwegian Forest Cat,True,2024-08-12,A0089,Anthony Morris,30,Campbellside,1,1
+female,Grey,Korean,False,2024-10-07,A0001,Donald Adams,-1,Christopherview,0,0
+male,Golden,Cockatiel,True,2024-09-15,A0091,Samantha Grimes,36,West Gary,1,1
+female,Brown,Korean,False,2025-04-29,A0001,Donald Adams,-1,Christopherview,0,0
+female,Brown,English Angora,True,2024-06-21,A0093,Mark Fuller,71,Lake Ana,2,1
+male,Golden,British Shorthair,True,2023-10-08,A0094,Sierra Romero,75,South Stanley,5,1
+male,Spotted,Netherland Dwarf,False,2024-04-03,A0001,Donald Adams,-1,Christopherview,0,0
+male,Brown,Dutch,True,2024-01-03,A0096,Luis Brown,72,South Robertland,5,1
+male,White,Lionhead,True,2024-11-12,A0097,John Wolfe,48,Juliaburgh,3,1
+female,Golden,Winter White,True,2024-02-29,A0098,Rebekah Shelton,74,Lake Tina,5,1
+male,Spotted,Maine Coon,False,2023-12-25,A0001,Donald Adams,-1,Christopherview,0,0
+male,Brown,Sphynx,False,2023-08-21,A0001,Donald Adams,-1,Christopherview,0,0
+male,Brown,Poodle,True,2024-01-03,A0101,Hannah Perez,63,Christopherview,3,1
+male,Black,Lionhead,True,2025-06-18,A0102,Cheyenne Kaufman,38,East Jessica,1,1
+female,Black,Conure,False,2024-12-31,A0001,Donald Adams,-1,Christopherview,0,0
+female,Golden,Lovebird,True,2024-02-25,A0104,Brittany Mann,75,South Haroldstad,5,1
+female,Black,Bulldog,True,2024-11-05,A0105,Joseph Banks,37,South Christopher,4,1
+male,Golden,Chinese,False,2025-04-14,A0001,Donald Adams,-1,Christopherview,0,0
+male,Black,Lionhead,True,2025-06-18,A0107,Margaret Webb,42,Lake Sean,2,1
+female,Mixed,Boxer,True,2024-10-19,A0108,Jill Kelley,68,Vaughnport,1,1
+male,Brown,Roborovski,True,2023-09-25,A0109,Michael Moreno,68,Houseville,3,1
+male,Black,Lionhead,True,2024-10-08,A0110,Jesse Todd,22,New Nicholas,0,1
+female,White,Winter White,True,2024-01-19,A0111,Brenda Murray,23,North Sarah,1,1
+male,Spotted,Devon Rex,True,2024-06-05,A0112,Matthew White,73,Donaldview,4,1
+female,Black,Birman,False,2024-12-25,A0001,Donald Adams,-1,Christopherview,0,0
+female,Spotted,Golden Retriever,False,2025-03-10,A0001,Donald Adams,-1,Christopherview,0,0
+male,Brown,Mini Rex,True,2025-06-01,A0115,Heather Hill,66,East Anthonyside,3,1
+male,Golden,Beagle,False,2023-12-25,A0001,Donald Adams,-1,Christopherview,0,0
+male,Golden,Lovebird,True,2024-08-27,A0117,Rhonda Brown,41,South Teresa,4,1
+male,Grey,Lionhead,True,2024-05-07,A0118,Cassandra Chang,62,West Francisberg,0,1
+female,Spotted,French Bulldog,True,2023-11-08,A0119,Krista Cunningham,68,Baileyshire,5,1
+male,Mixed,Macaw,True,2025-01-08,A0120,Matthew Graham,27,Christopherview,0,1
+female,Grey,Great Dane,True,2025-02-04,A0121,Jennifer Richardson,72,Melindabury,0,1
+female,Spotted,Persian,False,2024-01-27,A0001,Donald Adams,-1,Christopherview,0,0
+male,Black,English Angora,True,2024-09-20,A0123,Mr. Roger Barrett,65,East Dawnburgh,2,1
+female,Black,Golden Retriever,False,2024-10-11,A0001,Donald Adams,-1,Christopherview,0,0
+male,Spotted,Persian,True,2024-08-09,A0125,Natalie King,55,New Rachelstad,2,1
+female,White,Roborovski,False,2024-11-02,A0001,Donald Adams,-1,Christopherview,0,0
+female,Mixed,German Shepherd,True,2024-05-18,A0127,Nathan Becker,44,Port Lauriebury,1,1
+female,Spotted,Macaw,False,2023-12-17,A0001,Donald Adams,-1,Christopherview,0,0
+female,Golden,Russian Dwarf,False,2024-05-05,A0001,Donald Adams,-1,Christopherview,0,0
+male,Grey,Golden Retriever,True,2023-12-17,A0130,Christine Owens,24,Stephenport,4,1
+female,Spotted,Sphynx,True,2024-02-14,A0131,Sarah Walker,24,Donnafort,4,1
+female,Black,Birman,True,2025-06-18,A0132,Cathy Lyons,57,Aguilarberg,3,1
+female,Spotted,Siberian Husky,False,2023-12-16,A0001,Donald Adams,-1,Christopherview,0,0
+female,Golden,Golden Retriever,False,2024-12-24,A0001,Donald Adams,-1,Christopherview,0,0
+female,Spotted,Syrian,False,2024-05-03,A0001,Donald Adams,-1,Christopherview,0,0
+female,White,Holland Lop,True,2025-02-17,A0136,Adam Townsend,31,Allenchester,5,1
+female,Grey,Scottish Fold,True,2025-04-28,A0137,Patrick Hernandez,36,Dannyton,1,1
+female,Mixed,Boxer,False,2024-01-19,A0001,Donald Adams,-1,Christopherview,0,0
+male,Brown,Holland Lop,False,2024-10-12,A0001,Donald Adams,-1,Christopherview,0,0
+male,White,Parakeet,False,2024-07-24,A0001,Donald Adams,-1,Christopherview,0,0
+male,Spotted,Shih Tzu,True,2024-04-06,A0141,Kathy Murray,52,North Diana,1,1
+male,Golden,French Bulldog,True,2025-06-18,A0142,Taylor Martin,25,Bradleyfort,5,1
+male,Spotted,Oriental Shorthair,True,2023-11-17,A0143,Philip Brown,23,Romerostad,0,1
+female,Golden,French Bulldog,False,2025-05-16,A0001,Donald Adams,-1,Christopherview,0,0
+male,Mixed,Devon Rex,True,2024-10-09,A0145,Matthew Green,29,Cortezmouth,0,1
+female,Grey,Lionhead,False,2023-12-28,A0001,Donald Adams,-1,Christopherview,0,0
+male,Spotted,Bulldog,True,2024-04-03,A0147,Crystal Crane,23,Johnsonmouth,1,1
+female,White,Korean,True,2023-08-10,A0148,Donald Adams,67,Jasminetown,2,1
+female,Grey,Dachshund,True,2024-12-12,A0149,Matthew Middleton,28,New Patrick,4,1
+female,Brown,Bengal,False,2025-06-13,A0001,Donald Adams,-1,Christopherview,0,0
+male,Black,Cockatoo,True,2025-06-18,A0151,Cynthia Richardson,56,Allenmouth,4,1
+male,Mixed,Dutch,True,2024-06-30,A0152,Stacey Bell,70,Port Stephenhaven,1,1
+male,Brown,Sphynx,False,2024-06-04,A0001,Donald Adams,-1,Christopherview,0,0
+male,White,Roborovski,False,2023-11-29,A0001,Donald Adams,-1,Christopherview,0,0
+female,Golden,Great Dane,False,2024-12-13,A0001,Donald Adams,-1,Christopherview,0,0
+male,Grey,Dutch,False,2024-03-01,A0001,Donald Adams,-1,Christopherview,0,0
+female,Mixed,Roborovski,True,2024-12-27,A0157,Whitney Gray,62,East Dennisborough,0,1
+female,Brown,Siamese,False,2024-03-07,A0001,Donald Adams,-1,Christopherview,0,0
+female,Golden,Teddy Bear Hamster,True,2025-01-13,A0159,Lisa Sanchez,36,East Hectorbury,2,1
+female,Spotted,Amazon Parrot,True,2025-06-18,A0160,Kimberly Gross,39,North Sarahview,2,1
+female,Golden,Syrian,True,2025-01-24,A0161,Christopher Johnson,71,Michaelaland,0,1
+male,White,Labrador Retriever,True,2024-09-12,A0162,Colton Becker,45,Bergerville,1,1
+female,Grey,Norwegian Forest Cat,False,2023-12-29,A0001,Donald Adams,-1,Christopherview,0,0
+female,Brown,Roborovski,True,2025-06-18,A0164,Amanda Hall,25,Jasminefurt,1,1
+female,Spotted,Silver Marten,False,2023-07-20,A0001,Donald Adams,-1,Christopherview,0,0
+male,Brown,Netherland Dwarf,False,2025-06-29,A0001,Donald Adams,-1,Christopherview,0,0
+female,Mixed,Korean,True,2025-03-09,A0167,Natasha Porter,32,Stephensfurt,4,1
+female,Mixed,Maine Coon,False,2023-10-23,A0001,Donald Adams,-1,Christopherview,0,0
+male,Grey,Mini Rex,False,2024-11-01,A0001,Donald Adams,-1,Christopherview,0,0
+male,Black,Conure,False,2024-02-26,A0001,Donald Adams,-1,Christopherview,0,0
+female,White,French Lop,False,2024-02-13,A0001,Donald Adams,-1,Christopherview,0,0
+male,White,Boxer,True,2025-06-18,A0172,Kevin Mann,64,Laurenmouth,0,1
+female,Black,Syrian,True,2024-03-11,A0173,William Stuart,58,East Jessicaborough,2,1
+female,Grey,Persian,True,2025-01-22,A0174,Ashlee Davis,75,Lake Richard,4,1
+female,Grey,Macaw,False,2025-05-18,A0001,Donald Adams,-1,Christopherview,0,0
+male,Golden,Siamese,True,2025-06-18,A0176,John Johnson,25,New Stevenborough,3,1
+female,Spotted,Flemish Giant,True,2024-07-31,A0177,Jessica Leon,32,Morrowfurt,2,1
+male,Brown,Ragdoll,True,2024-11-10,A0178,Kevin Jones,59,New Stephanieville,4,1
+male,Spotted,Amazon Parrot,True,2024-11-26,A0179,Vincent Combs,58,Sandersfurt,5,1
+female,Spotted,Golden Retriever,True,2025-01-10,A0180,Lori Davis,43,New Elijah,1,1
+male,White,Cockatiel,True,2025-05-12,A0181,Donald Adams,30,Williamsbury,2,1
+female,Black,Chinese,False,2025-05-21,A0001,Donald Adams,-1,Christopherview,0,0
+female,Black,Great Dane,True,2024-01-07,A0183,Sharon Clark,72,Wareshire,0,1
+male,Grey,Devon Rex,True,2024-10-14,A0184,Ariel Johnson,37,New Cindy,4,1
+female,Golden,Russian Dwarf,True,2025-02-24,A0185,Charles Torres,62,North Oliviastad,4,1
+male,Spotted,Mini Rex,False,2024-12-09,A0001,Donald Adams,-1,Christopherview,0,0
+female,Mixed,Great Dane,False,2023-12-11,A0001,Donald Adams,-1,Christopherview,0,0
+female,Brown,Ragdoll,False,2024-08-07,A0001,Donald Adams,-1,Christopherview,0,0
+male,White,Parakeet,True,2024-06-17,A0189,Tracy Flores,48,Jaredland,4,1
+female,Brown,Lovebird,False,2024-10-20,A0001,Donald Adams,-1,Christopherview,0,0
+female,Grey,English Angora,True,2024-09-15,A0191,Michael Thornton,30,Lake Christopher,5,1
+female,White,Lionhead,True,2025-03-12,A0192,Diana Taylor,61,West Stevenfort,1,1
+male,Black,European Hamster,False,2024-09-16,A0001,Donald Adams,-1,Christopherview,0,0
+male,White,Cockatiel,True,2025-02-25,A0194,Sheryl Matthews,20,Blackchester,1,1
+male,Brown,Lionhead,False,2024-11-17,A0001,Donald Adams,-1,Christopherview,0,0
+male,White,Chinese,False,2024-11-28,A0001,Donald Adams,-1,Christopherview,0,0
+female,Golden,Labrador Retriever,False,2025-05-06,A0001,Donald Adams,-1,Christopherview,0,0
+male,Spotted,Flemish Giant,False,2024-02-13,A0001,Donald Adams,-1,Christopherview,0,0
+male,Mixed,Great Dane,True,2024-12-25,A0199,Derek Martinez,25,South Michelle,1,1
+male,Golden,Canary,False,2024-11-07,A0001,Donald Adams,-1,Christopherview,0,0

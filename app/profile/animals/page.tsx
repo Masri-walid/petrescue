@@ -334,6 +334,15 @@ export default function MyAnimalsPage() {
                       : (getProfileImageUrl(rawPhotoUrl) || "/placeholder.svg"))
                   : "/placeholder.svg"
 
+              // Helper function to get adoption likelihood color
+              const getAdoptionLikelihoodColor = (likelihood: number | null | undefined) => {
+                if (likelihood == null) return 'bg-gray-100 text-gray-600'
+                if (likelihood >= 75) return 'bg-green-100 text-green-700'
+                if (likelihood >= 50) return 'bg-yellow-100 text-yellow-700'
+                if (likelihood >= 25) return 'bg-orange-100 text-orange-700'
+                return 'bg-red-100 text-red-700'
+              }
+
               return (
                 <Card key={animal.id} className="overflow-hidden">
                   <div className="aspect-[4/3] relative">
@@ -343,10 +352,15 @@ export default function MyAnimalsPage() {
                       fill
                       className="object-cover"
                     />
-                    <div className="absolute top-2 right-2">
+                    <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
                       <Badge className={getStatusColor(animal.status)}>
                         {animal.status || 'Available'}
                       </Badge>
+                      {animal.adoptionLikelihood != null && (
+                        <Badge className={getAdoptionLikelihoodColor(animal.adoptionLikelihood)}>
+                          {animal.adoptionLikelihood.toFixed(0)}% Adoption Likelihood
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <CardHeader className="pb-2">
@@ -360,6 +374,25 @@ export default function MyAnimalsPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
+                    {/* Adoption Likelihood Progress Bar */}
+                    {animal.adoptionLikelihood != null && (
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-muted-foreground">Adoption Likelihood</span>
+                          <span className="font-medium">{animal.adoptionLikelihood.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full transition-all ${
+                              animal.adoptionLikelihood >= 75 ? 'bg-green-500' :
+                              animal.adoptionLikelihood >= 50 ? 'bg-yellow-500' :
+                              animal.adoptionLikelihood >= 25 ? 'bg-orange-500' : 'bg-red-500'
+                            }`}
+                            style={{ width: `${Math.min(100, Math.max(0, animal.adoptionLikelihood))}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mb-3">
                       <div className="text-sm text-muted-foreground">
                         {animal.species} • {animal.gender}

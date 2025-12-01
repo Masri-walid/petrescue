@@ -85,6 +85,9 @@ namespace PetRescueConnect.API.Models
         [Column("is_featured")]
         public bool IsFeatured { get; set; } = false;
 
+        [Column("adoption_likelihood", TypeName = "decimal(5,2)")]
+        public decimal? AdoptionLikelihood { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

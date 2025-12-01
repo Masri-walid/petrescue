@@ -26,9 +26,10 @@ namespace PetRescueConnect.API.DTOs
         public Guid? RescueReportId { get; set; }
         public decimal? AdoptionFee { get; set; }
         public bool IsFeatured { get; set; }
+        public decimal? AdoptionLikelihood { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-        
+
         public OrganizationDto? Organization { get; set; }
         public List<AnimalPhotoDto> AnimalPhotos { get; set; } = new();
     }

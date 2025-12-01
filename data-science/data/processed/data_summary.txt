@@ -1,0 +1,32 @@
+Processed Pet Adoption Data Summary
+==================================================
+
+Total records: 200
+Total features: 11
+
+Columns:
+  - gender: object
+  - color: object
+  - breed: object
+  - is_adopted: bool
+  - adoption_date: object
+  - adopter_id: object
+  - adopter_name: object
+  - adopter_age: int64
+  - adopter_city: object
+  - adopter_previous_pets: int64
+  - adopted: int64
+
+Basic Statistics:
+        gender    color   breed is_adopted adoption_date adopter_id  adopter_name  adopter_age     adopter_city  adopter_previous_pets     adopted
+count      200      200     200        200           200        200           200   200.000000              200             200.000000  200.000000
+unique       2        7      58          2           158        118           117          NaN              117                    NaN         NaN
+top     female  Spotted  Syrian       True    2025-06-18      A0001  Donald Adams          NaN  Christopherview                    NaN         NaN
+freq       107       37       8        118            15         83            84          NaN               84                    NaN         NaN
+mean       NaN      NaN     NaN        NaN           NaN        NaN           NaN    27.830000              NaN               1.465000    0.590000
+std        NaN      NaN     NaN        NaN           NaN        NaN           NaN    27.677088              NaN               1.798597    0.493068
+min        NaN      NaN     NaN        NaN           NaN        NaN           NaN    -1.000000              NaN               0.000000    0.000000
+25%        NaN      NaN     NaN        NaN           NaN        NaN           NaN    -1.000000              NaN               0.000000    0.000000
+50%        NaN      NaN     NaN        NaN           NaN        NaN           NaN    26.500000              NaN               0.000000    1.000000
+75%        NaN      NaN     NaN        NaN           NaN        NaN           NaN    55.250000              NaN               3.000000    1.000000
+max        NaN      NaN     NaN        NaN           NaN        NaN           NaN    75.000000              NaN               5.000000    1.000000

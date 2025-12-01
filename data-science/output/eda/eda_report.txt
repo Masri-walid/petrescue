@@ -1,0 +1,29 @@
+============================================================
+PetRescue Connect - Exploratory Data Analysis Report
+============================================================
+
+DATASET OVERVIEW
+----------------------------------------
+Total Records: 200
+Total Features: 11
+
+ADOPTION STATISTICS
+----------------------------------------
+Overall Adoption Rate: 59.0%
+Adopted Animals: 118
+Not Adopted: 82
+
+KEY FINDINGS
+----------------------------------------
+
+
+FEATURE RECOMMENDATIONS FOR MODEL
+----------------------------------------
+Based on the analysis, the following features show significant
+correlation with adoption likelihood:
+1. Species
+2. Age/Age Category
+3. Size
+4. Vaccination Status
+5. Spayed/Neutered Status
+6. Time in Shelter (if available)
